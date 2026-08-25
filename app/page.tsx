@@ -254,24 +254,33 @@ function createWorld(seedText: string, quality: QualityTier) {
   island.receiveShadow = true;
   root.add(island);
 
-  const trunkGeometry = new THREE.CylinderGeometry(0.22, 0.42, 3.5, 6);
+  const nearTrunkGeometry = new THREE.CylinderGeometry(0.22, 0.42, 3.5, 6);
+  const farTrunkGeometry = new THREE.CylinderGeometry(0.22, 0.42, 3.5, 4);
   const trunkMaterial = createWoodMaterial(hashSeed(`${manifest.seed}::forest/wood`));
-  const trunks = new THREE.InstancedMesh(trunkGeometry, trunkMaterial, manifest.counts.trees);
-  const canopyGeometry = new THREE.ConeGeometry(1.5, 5.2, 7);
+  const nearTrunks = new THREE.InstancedMesh(nearTrunkGeometry, trunkMaterial, manifest.forestLod.nearTrees);
+  const farTrunks = new THREE.InstancedMesh(farTrunkGeometry, trunkMaterial, manifest.forestLod.farTrees);
+  const nearCanopyGeometry = new THREE.ConeGeometry(1.5, 5.2, 7);
+  const farCanopyGeometry = new THREE.ConeGeometry(1.5, 5.2, 4);
   const canopyMaterial = new THREE.MeshStandardMaterial({ color: 0x111c18, roughness: 0.94 });
-  const canopies = new THREE.InstancedMesh(canopyGeometry, canopyMaterial, manifest.counts.trees);
+  const nearCanopies = new THREE.InstancedMesh(nearCanopyGeometry, canopyMaterial, manifest.forestLod.nearTrees);
+  const farCanopies = new THREE.InstancedMesh(farCanopyGeometry, canopyMaterial, manifest.forestLod.farTrees);
   const matrix = new THREE.Matrix4();
   const quaternion = new THREE.Quaternion();
   const treeUp = new THREE.Vector3(0, 1, 0);
   const scale = new THREE.Vector3();
   const position = new THREE.Vector3();
+  let nearTreeIndex = 0;
+  let farTreeIndex = 0;
   for (let i = 0; i < manifest.counts.trees; i += 1) {
+    const isNearTree = i < manifest.forestLod.nearTrees;
     let x = 0;
     let z = 0;
     let placementFound = false;
     for (let attempt = 0; attempt < 12; attempt += 1) {
       const angle = random() * Math.PI * 2;
-      const distance = 32 + random() * 39;
+      const minimumDistance = isNearTree ? 32 : manifest.forestLod.splitRadius;
+      const maximumDistance = isNearTree ? manifest.forestLod.splitRadius : 71;
+      const distance = minimumDistance + random() * (maximumDistance - minimumDistance);
       x = Math.cos(angle) * distance;
       z = Math.sin(angle) * distance;
       if ((x - 28) ** 2 + (z - 18) ** 2 >= 1050 && (x + 7) ** 2 + (z + 4) ** 2 >= 800) {
@@ -290,14 +299,30 @@ function createWorld(seedText: string, quality: QualityTier) {
     position.set(x, y + (3.5 * treeScale) / 2, z);
     scale.set(treeScale, treeScale, treeScale);
     matrix.compose(position, quaternion, scale);
-    trunks.setMatrixAt(i, matrix);
+    const trunkBatch = isNearTree ? nearTrunks : farTrunks;
+    const canopyBatch = isNearTree ? nearCanopies : farCanopies;
+    const batchIndex = isNearTree ? nearTreeIndex : farTreeIndex;
+    trunkBatch.setMatrixAt(batchIndex, matrix);
     position.y = y + 3.5 * treeScale + 2.2 * treeScale;
     matrix.compose(position, quaternion, scale);
-    canopies.setMatrixAt(i, matrix);
+    canopyBatch.setMatrixAt(batchIndex, matrix);
+    if (isNearTree) nearTreeIndex += 1;
+    else farTreeIndex += 1;
   }
-  trunks.castShadow = true;
-  canopies.castShadow = true;
-  root.add(trunks, canopies);
+  const treeBatches = [nearTrunks, nearCanopies, farTrunks, farCanopies];
+  treeBatches.forEach((batch) => {
+    batch.instanceMatrix.needsUpdate = true;
+    batch.computeBoundingSphere();
+  });
+  nearTrunks.castShadow = quality !== 'low';
+  nearCanopies.castShadow = quality !== 'low';
+  farTrunks.castShadow = false;
+  farCanopies.castShadow = false;
+  nearTrunks.name = 'forest-near-trunks';
+  nearCanopies.name = 'forest-near-canopies';
+  farTrunks.name = 'forest-far-trunks';
+  farCanopies.name = 'forest-far-canopies';
+  root.add(...treeBatches);
 
   const fireflyGeometry = new THREE.SphereGeometry(0.08, 5, 5);
   const fireflyMaterial = new THREE.MeshBasicMaterial({ color: new THREE.Color().setRGB(0.7, 2.4, 0.8), toneMapped: false });
@@ -1103,7 +1128,7 @@ export default function Home() {
           <div className="water-control"><label htmlFor="bloom-strength"><span>Bloom strength</span><output>{bloomStrength.toFixed(1)}×</output></label><input id="bloom-strength" type="range" min="0" max="1.8" step="0.1" value={bloomStrength} onChange={(event) => setBloomStrength(Number(event.target.value))} /></div>
           <div className="water-control"><label htmlFor="water-motion"><span>Water motion</span><output>{waterMotion.toFixed(1)}×</output></label><input id="water-motion" type="range" min="0" max="1.6" step="0.1" value={waterMotion} onChange={(event) => setWaterMotion(Number(event.target.value))} /></div>
         </section>
-        <p>Generator {manifest.generatorVersion} · {manifest.counts.trees} trees<br />WebGL 2 · Seed {manifest.seedHash}</p>
+        <p>Generator {manifest.generatorVersion} · {manifest.counts.trees} trees<br />LOD {manifest.forestLod.nearTrees} near / {manifest.forestLod.farTrees} far · Seed {manifest.seedHash}</p>
         <button className="soak-audit" onClick={runSoakAudit} disabled={soakAudit.running}>{soakAudit.running ? `Rebuild audit ${soakAudit.completed}/${soakAudit.total}` : soakAudit.finalGeometries === null ? 'Run 20× rebuild audit' : `${Math.abs(soakAudit.baselineGeometries - soakAudit.finalGeometries) <= 1 ? 'Audit clean' : 'Audit drift'} · ${soakAudit.baselineGeometries}→${soakAudit.finalGeometries} geometries`}</button>
         {soakAudit.finalHeapMb !== null && <p className="audit-heap">Heap sample · {soakAudit.baselineHeapMb ?? 'N/A'}→{soakAudit.finalHeapMb} MB</p>}
         <button className="manifest-copy" onClick={copyManifest}>{manifestCopied ? 'Manifest copied' : 'Copy world manifest'}</button>

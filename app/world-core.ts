@@ -35,7 +35,7 @@ export interface WorldValidationReport {
 export interface WorldManifest {
   seed: string;
   seedHash: number;
-  generatorVersion: '1.3.0';
+  generatorVersion: '1.4.0';
   manifestHash: string;
   quality: QualityTier;
   towerHeights: number[];
@@ -44,6 +44,11 @@ export interface WorldManifest {
     edges: CastleGraphEdge[];
   };
   counts: WorldCounts;
+  forestLod: {
+    nearTrees: number;
+    farTrees: number;
+    splitRadius: number;
+  };
   cameraLandmarks: Array<{
     id: 'castle' | 'village' | 'lake' | 'forest' | 'tower';
     label: string;
@@ -119,6 +124,14 @@ export function createWorldManifest(seedText: string, quality: QualityTier): Wor
     ],
   })) as WorldManifest['cameraLandmarks'];
   const towerHeights = [18 + castle() * 4, 23 + castle() * 5, 16 + castle() * 4, 14 + castle() * 5].map((height) => Number(height.toFixed(3)));
+  const counts = { ...QUALITY_COUNTS[quality] };
+  const nearTreeRatio = quality === 'low' ? 0.25 : quality === 'medium' ? 0.35 : 0.4;
+  const nearTrees = Math.round(counts.trees * nearTreeRatio);
+  const forestLod: WorldManifest['forestLod'] = {
+    nearTrees,
+    farTrees: counts.trees - nearTrees,
+    splitRadius: quality === 'low' ? 46 : quality === 'medium' ? 52 : 56,
+  };
   const castleGraph: WorldManifest['castleGraph'] = {
     nodes: [
       { id: 'astral-spire', type: 'tower', position: [-9, 0, -3], radius: 3.6, height: towerHeights[0] },
@@ -141,11 +154,12 @@ export function createWorldManifest(seedText: string, quality: QualityTier): Wor
   const base = {
     seed,
     seedHash,
-    generatorVersion: '1.3.0' as const,
+    generatorVersion: '1.4.0' as const,
     quality,
     towerHeights,
     castleGraph,
-    counts: { ...QUALITY_COUNTS[quality] },
+    counts,
+    forestLod,
     cameraLandmarks,
     zones: [
       { id: 'castle-core', type: 'castle' as const, center: [-7, -4] as [number, number], radius: 25 },
@@ -218,6 +232,8 @@ export function validateWorldManifest(manifest: WorldManifest): WorldValidationR
   const towerCount = manifest.castleGraph.nodes.filter((node) => node.type === 'tower').length;
   if (towerCount !== manifest.counts.towers) errors.push(`Castle tower count mismatch (${towerCount}/${manifest.counts.towers}).`);
   if (!manifest.castleGraph.edges.some((edge) => edge.type === 'moving-stair')) warnings.push('Castle graph has no moving staircase route.');
+  if (manifest.forestLod.nearTrees + manifest.forestLod.farTrees !== manifest.counts.trees) errors.push('Forest LOD counts do not match the total tree count.');
+  if (manifest.forestLod.nearTrees <= 0 || manifest.forestLod.farTrees <= 0 || manifest.forestLod.splitRadius <= 0) errors.push('Forest LOD policy is invalid.');
 
   const zoneIds = new Set<string>();
   for (const zone of manifest.zones) {
