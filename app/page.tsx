@@ -6,7 +6,10 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { SSAOPass } from 'three/addons/postprocessing/SSAOPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
+import { VignetteShader } from 'three/addons/shaders/VignetteShader.js';
 import { CameraManager, type CameraMode, type FixedView, type LandmarkId } from './camera-manager';
 import { EnvironmentSystem, type TimeOfDay } from './environment-system';
 import { createGreatHallArchitecture } from './great-hall';
@@ -116,6 +119,13 @@ function createWorld(seedText: string, quality: QualityTier) {
   castle.position.set(-7, terrainHeight(-7, -4, seed) + 0.2, -4);
   root.add(castle);
 
+  const towerNodes = manifest.castleGraph.nodes.filter((node) => node.type === 'tower');
+  const towerWindowCount = towerNodes.reduce((count, node) => count + Math.max(2, Math.floor(node.height / 5)), 0);
+  const towerWindows = new THREE.InstancedMesh(new THREE.PlaneGeometry(0.7, 1.25), windowMaterial, towerWindowCount);
+  const towerWindowTransform = new THREE.Object3D();
+  const towerWindowTarget = new THREE.Vector3();
+  let towerWindowIndex = 0;
+
   const addTower = (x: number, z: number, radius: number, height: number, variant: number) => {
     const tower = new THREE.Group();
     tower.position.set(x, 0, z);
@@ -134,17 +144,22 @@ function createWorld(seedText: string, quality: QualityTier) {
     tower.add(roofMesh);
     for (let floor = 0; floor < Math.max(2, Math.floor(height / 5)); floor += 1) {
       const angle = floor * 2.1 + variant;
-      const window = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 1.25), windowMaterial);
-      window.position.set(Math.sin(angle) * (radius + 0.01), 3.2 + floor * 4.2, Math.cos(angle) * (radius + 0.01));
-      window.lookAt(0, window.position.y, 0);
-      tower.add(window);
+      const windowY = 3.2 + floor * 4.2;
+      towerWindowTransform.position.set(x + Math.sin(angle) * (radius + 0.01), windowY, z + Math.cos(angle) * (radius + 0.01));
+      towerWindowTarget.set(x, windowY, z);
+      towerWindowTransform.lookAt(towerWindowTarget);
+      towerWindowTransform.updateMatrix();
+      towerWindows.setMatrixAt(towerWindowIndex, towerWindowTransform.matrix);
+      towerWindowIndex += 1;
     }
     castle.add(tower);
   };
 
-  manifest.castleGraph.nodes
-    .filter((node) => node.type === 'tower')
-    .forEach((node, index) => addTower(node.position[0], node.position[2], node.radius, node.height, [0.4, 1.4, 0.8, 1.9][index]));
+  towerNodes.forEach((node, index) => addTower(node.position[0], node.position[2], node.radius, node.height, [0.4, 1.4, 0.8, 1.9][index]));
+  towerWindows.name = 'castle-instanced-tower-windows';
+  towerWindows.instanceMatrix.needsUpdate = true;
+  towerWindows.computeBoundingSphere();
+  castle.add(towerWindows);
 
   const greatHall = createGreatHallArchitecture(manifest.seed, {
     stone,
@@ -656,6 +671,8 @@ export default function Home() {
   const qualityRef = useRef<QualityTier>('medium');
   const fogRef = useRef(true);
   const postRef = useRef(true);
+  const bloomRef = useRef(true);
+  const vignetteRef = useRef(true);
   const aoRef = useRef(false);
   const shadowsRef = useRef(true);
   const fogDensityRef = useRef(1);
@@ -679,6 +696,9 @@ export default function Home() {
   const [quality, setQuality] = useState<QualityTier>('medium');
   const [fogEnabled, setFogEnabled] = useState(true);
   const [postEnabled, setPostEnabled] = useState(true);
+  const [bloomEnabled, setBloomEnabled] = useState(true);
+  const [vignetteEnabled, setVignetteEnabled] = useState(true);
+  const [gradeEnabled, setGradeEnabled] = useState(true);
   const [aoEnabled, setAoEnabled] = useState(false);
   const [shadowsEnabled, setShadowsEnabled] = useState(true);
   const [fogDensity, setFogDensity] = useState(1);
@@ -704,6 +724,8 @@ export default function Home() {
   useEffect(() => { qualityRef.current = quality; }, [quality]);
   useEffect(() => { fogRef.current = fogEnabled; }, [fogEnabled]);
   useEffect(() => { postRef.current = postEnabled; }, [postEnabled]);
+  useEffect(() => { bloomRef.current = bloomEnabled; }, [bloomEnabled]);
+  useEffect(() => { vignetteRef.current = vignetteEnabled; }, [vignetteEnabled]);
   useEffect(() => { aoRef.current = aoEnabled; }, [aoEnabled]);
   useEffect(() => { shadowsRef.current = shadowsEnabled; }, [shadowsEnabled]);
   useEffect(() => { fogDensityRef.current = fogDensity; }, [fogDensity]);
@@ -746,11 +768,22 @@ export default function Home() {
     ssaoPass.maxDistance = 0.12;
     ssaoPass.enabled = false;
     const bloomPass = new UnrealBloomPass(new THREE.Vector2(mount.clientWidth, mount.clientHeight), 0.48, 0.42, 0.86);
+    const fxaaPass = new ShaderPass(FXAAShader);
+    const vignettePass = new ShaderPass(VignetteShader);
+    vignettePass.uniforms.offset.value = 1.05;
+    vignettePass.uniforms.darkness.value = 1.18;
     const outputPass = new OutputPass();
     composer.addPass(renderPass);
     composer.addPass(ssaoPass);
     composer.addPass(bloomPass);
+    composer.addPass(fxaaPass);
+    composer.addPass(vignettePass);
     composer.addPass(outputPass);
+    const updateFxaaResolution = () => {
+      const pixelRatio = renderer.getPixelRatio();
+      fxaaPass.material.uniforms.resolution.value.set(1 / (mount.clientWidth * pixelRatio), 1 / (mount.clientHeight * pixelRatio));
+    };
+    updateFxaaResolution();
 
     const initialGenerationStarted = performance.now();
     let world = createWorld(seedRef.current, qualityRef.current);
@@ -766,7 +799,8 @@ export default function Home() {
     let soakCompleted = 0;
     let soakBaselineGeometries = 0;
     let soakBaselineHeapMb: number | null = null;
-    let soakFinalSampleFrames = 0;
+    let soakFinalSampleUntil = 0;
+    let soakFinalHeapMb: number | null = null;
     let contextAvailable = true;
     let previousElapsed = 0;
     let framesSinceSample = 0;
@@ -776,6 +810,8 @@ export default function Home() {
       if (soakRemaining > 0) return;
       soakRemaining = 20;
       soakCompleted = 0;
+      soakFinalSampleUntil = 0;
+      soakFinalHeapMb = null;
       soakBaselineGeometries = renderer.info.memory.geometries;
       soakBaselineHeapMb = readHeapMb();
       setSoakAudit({ running: true, completed: 0, total: 20, baselineGeometries: soakBaselineGeometries, finalGeometries: null, baselineHeapMb: soakBaselineHeapMb, finalHeapMb: null });
@@ -828,13 +864,17 @@ export default function Home() {
           renderer.setSize(mount.clientWidth, mount.clientHeight);
           composer.setPixelRatio(renderer.getPixelRatio());
           composer.setSize(mount.clientWidth, mount.clientHeight);
+          updateFxaaResolution();
           setManifest(world.manifest);
           setGenerationError(null);
           if (soakRemaining > 0) {
             soakRemaining -= 1;
             soakCompleted += 1;
             const running = soakRemaining > 0;
-            if (!running) soakFinalSampleFrames = 2;
+            if (!running) {
+              soakFinalSampleUntil = elapsed + 3;
+              soakFinalHeapMb = null;
+            }
             setSoakAudit({
               running: true,
               completed: soakCompleted,
@@ -851,6 +891,7 @@ export default function Home() {
           }
         } catch (error) {
           soakRemaining = 0;
+          soakFinalSampleUntil = 0;
           setSoakAudit((audit) => ({ ...audit, running: false, finalGeometries: renderer.info.memory.geometries, finalHeapMb: readHeapMb() }));
           setGenerationError(error instanceof Error ? error.message : 'World generation failed.');
           setGenerationStatus('error');
@@ -867,6 +908,9 @@ export default function Home() {
       }, world);
       renderer.toneMappingExposure = environmentFrame.toneMappingExposure;
       bloomPass.strength = environmentFrame.bloomStrength;
+      bloomPass.enabled = postRef.current && bloomRef.current;
+      fxaaPass.enabled = postRef.current;
+      vignettePass.enabled = postRef.current && vignetteRef.current;
       ssaoPass.enabled = postRef.current && aoRef.current && qualityRef.current !== 'low';
       renderer.shadowMap.enabled = shadowsRef.current;
       world.waterMaterial.uniforms.uTime.value = animationTime;
@@ -896,9 +940,11 @@ export default function Home() {
       if (postRef.current) composer.render(delta);
       else renderer.render(scene, camera);
 
-      if (soakFinalSampleFrames > 0) {
-        soakFinalSampleFrames -= 1;
-        if (soakFinalSampleFrames === 0) {
+      if (soakFinalSampleUntil > 0) {
+        const heapSample = readHeapMb();
+        if (heapSample !== null) soakFinalHeapMb = soakFinalHeapMb === null ? heapSample : Math.min(soakFinalHeapMb, heapSample);
+        if (elapsed >= soakFinalSampleUntil) {
+          soakFinalSampleUntil = 0;
           setSoakAudit({
             running: false,
             completed: soakCompleted,
@@ -906,7 +952,7 @@ export default function Home() {
             baselineGeometries: soakBaselineGeometries,
             finalGeometries: renderer.info.memory.geometries,
             baselineHeapMb: soakBaselineHeapMb,
-            finalHeapMb: readHeapMb(),
+            finalHeapMb: soakFinalHeapMb,
           });
           setGenerationStatus('ready');
         }
@@ -944,6 +990,7 @@ export default function Home() {
       renderer.setSize(width, height);
       composer.setPixelRatio(renderer.getPixelRatio());
       composer.setSize(width, height);
+      updateFxaaResolution();
     };
     window.addEventListener('resize', resize);
     return () => {
@@ -1107,9 +1154,12 @@ export default function Home() {
     return () => window.removeEventListener('keydown', shortcuts);
   }, [manifest.cameraLandmarks, randomSeed, selectFixedView, selectMode, selectScene, toggleAutoRotate, toggleTimeOfDay, toggleTourPause]);
 
+  const auditGeometryStable = soakAudit.finalGeometries !== null && Math.abs(soakAudit.baselineGeometries - soakAudit.finalGeometries) <= 1;
+  const auditHeapStable = soakAudit.finalHeapMb === null || soakAudit.baselineHeapMb === null || soakAudit.finalHeapMb <= soakAudit.baselineHeapMb + Math.max(8, soakAudit.baselineHeapMb * 0.15);
+
   return (
     <main className={`experience-shell ${entered ? 'is-entered' : ''} ${timeOfDay === 'day' ? 'is-day' : 'is-night'}`}>
-      <div ref={mountRef} className={`world-canvas ${postEnabled ? '' : 'no-post'}`} aria-label="Procedurally generated moonlit wizarding world" tabIndex={entered ? 0 : -1} />
+      <div ref={mountRef} className={`world-canvas ${postEnabled && gradeEnabled ? '' : 'no-grade'}`} aria-label="Procedurally generated moonlit wizarding world" tabIndex={entered ? 0 : -1} />
       <div className="atmosphere" aria-hidden="true" />
       <div className="edge-runes" aria-hidden="true">✦　·　✧　·　✦</div>
       <header className="topbar">
@@ -1147,8 +1197,11 @@ export default function Home() {
         </section>
         <section className="effect-toggles">
           <label><span>Atmospheric fog</span><input type="checkbox" checked={fogEnabled} onChange={(event) => setFogEnabled(event.target.checked)} /></label>
-          <label><span>Cinematic grade</span><input type="checkbox" checked={postEnabled} onChange={(event) => setPostEnabled(event.target.checked)} /></label>
-          <label><span>SSAO {quality === 'low' ? '· Medium+' : ''}</span><input type="checkbox" checked={aoEnabled && quality !== 'low'} disabled={quality === 'low'} onChange={(event) => setAoEnabled(event.target.checked)} /></label>
+          <label><span>Post-processing</span><input type="checkbox" checked={postEnabled} onChange={(event) => setPostEnabled(event.target.checked)} /></label>
+          <label><span>Color grade</span><input type="checkbox" checked={gradeEnabled && postEnabled} disabled={!postEnabled} onChange={(event) => setGradeEnabled(event.target.checked)} /></label>
+          <label><span>HDR Bloom</span><input type="checkbox" checked={bloomEnabled && postEnabled} disabled={!postEnabled} onChange={(event) => setBloomEnabled(event.target.checked)} /></label>
+          <label><span>Vignette</span><input type="checkbox" checked={vignetteEnabled && postEnabled} disabled={!postEnabled} onChange={(event) => setVignetteEnabled(event.target.checked)} /></label>
+          <label><span>SSAO {quality === 'low' ? '· Medium+' : ''}</span><input type="checkbox" checked={aoEnabled && postEnabled && quality !== 'low'} disabled={!postEnabled || quality === 'low'} onChange={(event) => setAoEnabled(event.target.checked)} /></label>
           <label><span>Dynamic shadows</span><input type="checkbox" checked={shadowsEnabled} onChange={(event) => setShadowsEnabled(event.target.checked)} /></label>
           <label><span>Zone boundaries</span><input type="checkbox" checked={zoneDebugEnabled} onChange={(event) => setZoneDebugEnabled(event.target.checked)} /></label>
           <label><span>Reduced camera motion</span><input type="checkbox" checked={reducedMotion} onChange={(event) => setReducedMotion(event.target.checked)} /></label>
@@ -1160,7 +1213,7 @@ export default function Home() {
           <div className="water-control"><label htmlFor="water-motion"><span>Water motion</span><output>{waterMotion.toFixed(1)}×</output></label><input id="water-motion" type="range" min="0" max="1.6" step="0.1" value={waterMotion} onChange={(event) => setWaterMotion(Number(event.target.value))} /></div>
         </section>
         <p>Generator {manifest.generatorVersion} · {manifest.counts.trees} trees<br />LOD {manifest.forestLod.nearTrees} near / {manifest.forestLod.farTrees} far · Seed {manifest.seedHash}</p>
-        <button className="soak-audit" onClick={runSoakAudit} disabled={soakAudit.running}>{soakAudit.running ? `Rebuild audit ${soakAudit.completed}/${soakAudit.total}` : soakAudit.finalGeometries === null ? 'Run 20× rebuild audit' : `${Math.abs(soakAudit.baselineGeometries - soakAudit.finalGeometries) <= 1 ? 'Audit clean' : 'Audit drift'} · ${soakAudit.baselineGeometries}→${soakAudit.finalGeometries} geometries`}</button>
+        <button className="soak-audit" onClick={runSoakAudit} disabled={soakAudit.running}>{soakAudit.running ? `Rebuild audit ${soakAudit.completed}/${soakAudit.total}` : soakAudit.finalGeometries === null ? 'Run 20× rebuild audit' : `${auditGeometryStable && auditHeapStable ? 'Audit clean' : 'Audit review'} · ${soakAudit.baselineGeometries}→${soakAudit.finalGeometries} geometries`}</button>
         {soakAudit.finalHeapMb !== null && <p className="audit-heap">Heap sample · {soakAudit.baselineHeapMb ?? 'N/A'}→{soakAudit.finalHeapMb} MB</p>}
         <button className="manifest-copy" onClick={copyManifest}>{manifestCopied ? 'Manifest copied' : 'Copy world manifest'}</button>
       </aside>
