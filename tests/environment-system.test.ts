@@ -28,8 +28,14 @@ test('EnvironmentSystem transitions the complete lighting model from night to da
   const nightFogDensity = environment.fog.density;
 
   assert.equal(environment.keyLight.parent, scene);
+  assert.equal(environment.fillLight.parent, scene);
+  assert.equal(environment.fillLight.castShadow, false);
   assert.equal(scene.fog, environment.fog);
   assert.equal(world.starMaterial.opacity, 0.72);
+  assert.equal(nightFogDensity, 0.0095);
+  assert.equal(nightFrame.toneMappingExposure, 1.12);
+  assert.equal(environment.hemisphere.intensity, 1.55);
+  assert.equal(environment.fillLight.intensity, 0.82);
 
   let dayFrame = nightFrame;
   for (let frame = 0; frame < 240; frame += 1) {
@@ -40,6 +46,8 @@ test('EnvironmentSystem transitions the complete lighting model from night to da
   assert.ok(environment.fog.density < nightFogDensity);
   assert.ok(world.starMaterial.opacity < 0.03);
   assert.ok(environment.keyLight.position.x > 40);
+  assert.ok(environment.fillLight.position.x < -27);
+  assert.ok(environment.fillLight.intensity < 0.35);
   assert.ok(world.celestialOrb.position.x > 50);
   assert.ok(dayFrame.toneMappingExposure > nightFrame.toneMappingExposure);
   assert.equal(dayFrame.bloomStrength, 0.48);
@@ -60,12 +68,13 @@ test('EnvironmentSystem applies toggles and disposes its scene ownership idempot
 
   assert.equal(scene.fog, null);
   assert.equal(environment.keyLight.castShadow, false);
-  assert.equal(frame.toneMappingExposure, 0.82);
+  assert.equal(frame.toneMappingExposure, 0.93);
   assert.equal(frame.bloomStrength, 0.31);
 
   environment.dispose();
   environment.dispose();
   assert.equal(environment.keyLight.parent, null);
+  assert.equal(environment.fillLight.parent, null);
   assert.equal(environment.hemisphere.parent, null);
   assert.equal(scene.background, null);
   assert.throws(() => environment.update(1 / 60, nightSettings, world), /disposed/);
