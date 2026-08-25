@@ -29,6 +29,8 @@ test('walk collision includes visual landmark footprints', () => {
   assert.equal(isWalkablePosition({ x: -48.5, z: 22.2 }, manifest), false);
   assert.equal(isWalkablePosition({ x: -31, z: 13 }, manifest), false);
   assert.equal(isWalkablePosition({ x: 18, z: -43 }, manifest), false);
+  assert.equal(isWalkablePosition({ x: 50, z: -28 }, manifest), false);
+  assert.equal(isWalkablePosition({ x: -53, z: -33 }, manifest), false);
 });
 
 test('walk movement blocks obstacles, slides along them, and returns terrain height', () => {

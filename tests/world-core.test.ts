@@ -61,9 +61,9 @@ test('manifest validation rejects a dangling castle route', () => {
 
 test('camera landmarks are deterministic, complete, and terrain-safe', () => {
   const manifest = createWorldManifest('MAGIC-001', 'high');
-  assert.equal(manifest.generatorVersion, '2.0.0');
-  assert.deepEqual(manifest.cameraLandmarks.map((landmark) => landmark.id), ['castle', 'village', 'lake', 'forest', 'tower']);
-  assert.equal(new Set(manifest.cameraLandmarks.map((landmark) => landmark.label)).size, 5);
+  assert.equal(manifest.generatorVersion, '2.1.0');
+  assert.deepEqual(manifest.cameraLandmarks.map((landmark) => landmark.id), ['castle', 'village', 'lake', 'forest', 'tower', 'mountains', 'ruins', 'station']);
+  assert.equal(new Set(manifest.cameraLandmarks.map((landmark) => landmark.label)).size, 8);
   for (const landmark of manifest.cameraLandmarks) {
     assert.ok(landmark.position.every(Number.isFinite));
     const terrain = terrainHeight(landmark.position[0], landmark.position[2], manifest.seedHash);
@@ -128,6 +128,12 @@ test('lake ecology scales by quality while preserving one shared boundary', () =
   assert.ok(high.counts.trees >= 1000);
   assert.deepEqual(low.zones.find((zone) => zone.type === 'lake'), high.zones.find((zone) => zone.type === 'lake'));
   assert.equal(low.zones.find((zone) => zone.type === 'lake')?.radius, 26);
+});
+
+test('world topology includes every major region exactly once', () => {
+  const manifest = createWorldManifest('MAGIC-001', 'medium');
+  assert.deepEqual(manifest.zones.map((zone) => zone.type), ['castle', 'village', 'forest', 'lake', 'mountains', 'ruins', 'station']);
+  assert.equal(new Set(manifest.zones.map((zone) => zone.id)).size, manifest.zones.length);
 });
 
 test('forest LOD policy is deterministic, complete, and quality-aware', () => {
