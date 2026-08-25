@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
-import { createWorldManifest, hashSeed, seededStream, terrainHeight } from '../app/world-core.ts';
+import { createWorldManifest, hashSeed, seededStream, terrainHeight, validateWorldManifest } from '../app/world-core.ts';
 
 test('same seed and quality produce an identical manifest', () => {
   const first = createWorldManifest('MAGIC-001', 'medium');
@@ -30,7 +30,9 @@ test('twenty regression seeds create finite terrain and valid manifests', () => 
   for (let index = 1; index <= 20; index += 1) {
     const seed = `MAGIC-${String(index).padStart(3, '0')}`;
     const manifest = createWorldManifest(seed, 'medium');
+    const validation = validateWorldManifest(manifest);
     assert.equal(manifest.counts.towers, 4);
+    assert.equal(validation.ok, true, validation.errors.join('\n'));
     assert.ok(manifest.counts.trees >= 100);
     for (let x = -70; x <= 70; x += 14) {
       const height = terrainHeight(x, -x / 2, hashSeed(seed));
@@ -38,6 +40,22 @@ test('twenty regression seeds create finite terrain and valid manifests', () => 
       assert.ok(Math.abs(height) < 50);
     }
   }
+});
+
+test('castle topology is connected and resolves every route endpoint', () => {
+  const manifest = createWorldManifest('MAGIC-001', 'medium');
+  const report = validateWorldManifest(manifest);
+  assert.equal(report.ok, true, report.errors.join('\n'));
+  assert.equal(manifest.castleGraph.nodes.filter((node) => node.type === 'tower').length, 4);
+  assert.ok(manifest.castleGraph.edges.some((edge) => edge.type === 'moving-stair'));
+});
+
+test('manifest validation rejects a dangling castle route', () => {
+  const manifest = structuredClone(createWorldManifest('MAGIC-001', 'medium'));
+  manifest.castleGraph.edges[0].to = 'missing-tower';
+  const report = validateWorldManifest(manifest);
+  assert.equal(report.ok, false);
+  assert.ok(report.errors.some((error) => error.includes('missing node')));
 });
 
 test('camera landmarks are deterministic, complete, and terrain-safe', () => {

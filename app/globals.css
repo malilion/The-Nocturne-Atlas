@@ -57,6 +57,9 @@ button { color: inherit; }
 .performance-hud > p { margin: 0; color: #646d69; font-family: 'Courier New', monospace; font-size: 7px; line-height: 1.6; letter-spacing: .08em; }
 .manifest-copy { width: 100%; height: 30px; margin-top: 11px; border: 1px solid rgba(236,232,220,.11); border-radius: 2px; background: rgba(236,232,220,.04); color: #878f8b; cursor: pointer; font-size: 7px; letter-spacing: .12em; text-transform: uppercase; }
 .manifest-copy:hover { background: rgba(236,232,220,.08); color: #c7cdc9; }
+.soak-audit { width: 100%; min-height: 32px; margin-top: 11px; border: 1px solid rgba(132,188,162,.22); border-radius: 2px; background: rgba(93,148,123,.08); color: #a9c9b8; cursor: pointer; font-size: 7px; letter-spacing: .1em; text-transform: uppercase; }
+.soak-audit:hover:not(:disabled) { background: rgba(93,148,123,.16); color: #d1e0d8; }
+.soak-audit:disabled { cursor: progress; opacity: .72; }
 .quality-controls { margin: 0 0 12px; }
 .quality-controls > label { display: block; margin-bottom: 7px; color: #737b78; font-size: 7px; font-weight: 700; letter-spacing: .15em; text-transform: uppercase; }
 .quality-controls > div { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; padding: 2px; border: 1px solid rgba(236,232,220,.11); border-radius: 3px; }

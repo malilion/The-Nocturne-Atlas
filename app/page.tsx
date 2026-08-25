@@ -7,7 +7,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { createRoofMaterial, createStoneMaterial, createTerrainMaterial, createWoodMaterial } from './procedural-materials';
-import { createWorldManifest, hashSeed, mulberry32, terrainHeight, type QualityTier, type WorldManifest } from './world-core';
+import { createWorldManifest, hashSeed, mulberry32, terrainHeight, validateWorldManifest, type QualityTier, type WorldManifest } from './world-core';
 
 const DEFAULT_SEED = 'MAGIC-001';
 type CameraMode = 'tour' | 'fly' | 'orbit';
@@ -16,6 +16,19 @@ interface PerformanceStats {
   fps: number;
   calls: number;
   triangles: number;
+  geometries: number;
+  textures: number;
+  generationMs: number;
+  disposedGeometries: number;
+  disposedMaterials: number;
+}
+
+interface SoakAudit {
+  running: boolean;
+  completed: number;
+  total: number;
+  baselineGeometries: number;
+  finalGeometries: number | null;
 }
 
 function disposeObject(root: THREE.Object3D) {
@@ -29,10 +42,13 @@ function disposeObject(root: THREE.Object3D) {
   });
   geometries.forEach((geometry) => geometry.dispose());
   materials.forEach((material) => material.dispose());
+  return { geometries: geometries.size, materials: materials.size };
 }
 
 function createWorld(seedText: string, quality: QualityTier) {
   const manifest = createWorldManifest(seedText, quality);
+  const validation = validateWorldManifest(manifest);
+  if (!validation.ok) throw new Error(`World manifest rejected: ${validation.errors.join(' ')}`);
   const seed = manifest.seedHash;
   const random = mulberry32(hashSeed(`${manifest.seed}::world`));
   const root = new THREE.Group();
@@ -106,10 +122,9 @@ function createWorld(seedText: string, quality: QualityTier) {
     castle.add(tower);
   };
 
-  addTower(-9, -3, 3.6, manifest.towerHeights[0], 0.4);
-  addTower(7, -5, 3, manifest.towerHeights[1], 1.4);
-  addTower(2, 8, 4, manifest.towerHeights[2], 0.8);
-  addTower(-12, 8, 2.7, manifest.towerHeights[3], 1.9);
+  manifest.castleGraph.nodes
+    .filter((node) => node.type === 'tower')
+    .forEach((node, index) => addTower(node.position[0], node.position[2], node.radius, node.height, [0.4, 1.4, 0.8, 1.9][index]));
 
   const hall = new THREE.Mesh(new THREE.BoxGeometry(17, 9, 10), stone);
   hall.position.set(-1, 4.5, 0);
@@ -382,6 +397,17 @@ function createWorld(seedText: string, quality: QualityTier) {
   stairs.receiveShadow = true;
   stairRoot.add(stairs);
   root.add(stairRoot);
+  const stairTargets = [-0.42, 0.7].map((angle) => new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), angle)) as [THREE.Quaternion, THREE.Quaternion];
+  const landingGeometry = new THREE.BoxGeometry(4.6, 0.55, 4.2);
+  const stairEnd = new THREE.Vector3(15 * 1.08 + 2.1, 15 * 0.6, 0);
+  stairTargets.forEach((target) => {
+    const landing = new THREE.Mesh(landingGeometry, stone);
+    landing.position.copy(stairEnd).applyQuaternion(target).add(stairRoot.position);
+    landing.quaternion.copy(target);
+    landing.castShadow = true;
+    landing.receiveShadow = true;
+    root.add(landing);
+  });
 
   const candleRoot = new THREE.Group();
   candleRoot.name = 'floating-candles';
@@ -424,7 +450,7 @@ function createWorld(seedText: string, quality: QualityTier) {
   zoneDebug.visible = false;
   root.add(zoneDebug);
 
-  return { root, waterMaterial, magicMaterial, stairRoot, candleRoot, zoneDebug, manifest };
+  return { root, waterMaterial, magicMaterial, stairRoot, stairTargets, candleRoot, zoneDebug, manifest, validation };
 }
 
 export default function Home() {
@@ -438,6 +464,7 @@ export default function Home() {
   const tourPausedRef = useRef(false);
   const reducedMotionRef = useRef(false);
   const waterMotionRef = useRef(1);
+  const ambientPausedRef = useRef(false);
   const [seed, setSeed] = useState(DEFAULT_SEED);
   const [activeSeed, setActiveSeed] = useState(DEFAULT_SEED);
   const [entered, setEntered] = useState(false);
@@ -454,9 +481,11 @@ export default function Home() {
   const [tourPaused, setTourPaused] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [waterMotion, setWaterMotion] = useState(1);
+  const [ambientPaused, setAmbientPaused] = useState(false);
   const [generationStatus, setGenerationStatus] = useState<'ready' | 'building' | 'error'>('ready');
   const [generationError, setGenerationError] = useState<string | null>(null);
-  const [stats, setStats] = useState<PerformanceStats>({ fps: 60, calls: 0, triangles: 0 });
+  const [stats, setStats] = useState<PerformanceStats>({ fps: 60, calls: 0, triangles: 0, geometries: 0, textures: 0, generationMs: 0, disposedGeometries: 0, disposedMaterials: 0 });
+  const [soakAudit, setSoakAudit] = useState<SoakAudit>({ running: false, completed: 0, total: 20, baselineGeometries: 0, finalGeometries: null });
   const [hudOpen, setHudOpen] = useState(false);
 
   useEffect(() => { seedRef.current = activeSeed; }, [activeSeed]);
@@ -468,6 +497,7 @@ export default function Home() {
   useEffect(() => { tourPausedRef.current = tourPaused; }, [tourPaused]);
   useEffect(() => { reducedMotionRef.current = reducedMotion; }, [reducedMotion]);
   useEffect(() => { waterMotionRef.current = waterMotion; }, [waterMotion]);
+  useEffect(() => { ambientPausedRef.current = ambientPaused; }, [ambientPaused]);
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -486,6 +516,7 @@ export default function Home() {
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.05;
+    renderer.info.autoReset = false;
     mount.appendChild(renderer.domElement);
 
     const composer = new EffectComposer(renderer);
@@ -507,7 +538,10 @@ export default function Home() {
     moonLight.shadow.camera.bottom = -70;
     scene.add(hemisphere, moonLight);
 
+    const initialGenerationStarted = performance.now();
     let world = createWorld(seedRef.current, qualityRef.current);
+    let lastGenerationMs = performance.now() - initialGenerationStarted;
+    let lastDisposal = { geometries: 0, materials: 0 };
     scene.add(world.root);
     const createTourCurves = (worldManifest: WorldManifest) => ({
       positions: new THREE.CatmullRomCurve3(worldManifest.cameraLandmarks.map((landmark) => new THREE.Vector3(...landmark.position)), true, 'catmullrom', 0.26),
@@ -525,6 +559,11 @@ export default function Home() {
     const startedAt = performance.now();
     let frame = 0;
     let rebuildRequested = false;
+    let animationTime = 0;
+    let soakRemaining = 0;
+    let soakCompleted = 0;
+    let soakBaselineGeometries = 0;
+    let soakFinalSampleFrames = 0;
     let previousElapsed = 0;
     let framesSinceSample = 0;
     let sampleStarted = 0;
@@ -542,7 +581,17 @@ export default function Home() {
     const orbitTarget = new THREE.Vector3(-7, 10, -4);
     const keys = new Set<string>();
     const rebuild = () => { rebuildRequested = true; };
+    const runSoak = () => {
+      if (soakRemaining > 0) return;
+      soakRemaining = 20;
+      soakCompleted = 0;
+      soakBaselineGeometries = renderer.info.memory.geometries;
+      setSoakAudit({ running: true, completed: 0, total: 20, baselineGeometries: soakBaselineGeometries, finalGeometries: null });
+      setGenerationStatus('building');
+      rebuildRequested = true;
+    };
     window.addEventListener('wizard-rebuild', rebuild);
+    window.addEventListener('wizard-soak', runSoak);
 
     const onKeyDown = (event: KeyboardEvent) => keys.add(event.key.toLowerCase());
     const onKeyUp = (event: KeyboardEvent) => keys.delete(event.key.toLowerCase());
@@ -575,10 +624,13 @@ export default function Home() {
       const elapsed = (performance.now() - startedAt) / 1000;
       const delta = Math.min(0.05, elapsed - previousElapsed);
       previousElapsed = elapsed;
+      if (!ambientPausedRef.current) animationTime += delta;
       if (rebuildRequested) {
         rebuildRequested = false;
         try {
+          const generationStarted = performance.now();
           const nextWorld = createWorld(seedRef.current, qualityRef.current);
+          lastGenerationMs = performance.now() - generationStarted;
           const previousWorld = world;
           scene.add(nextWorld.root);
           world = nextWorld;
@@ -586,15 +638,33 @@ export default function Home() {
           tourTime = 0;
           lastTourIndex = -1;
           scene.remove(previousWorld.root);
-          disposeObject(previousWorld.root);
+          lastDisposal = disposeObject(previousWorld.root);
           renderer.setPixelRatio(Math.min(window.devicePixelRatio, renderScale()));
           renderer.setSize(mount.clientWidth, mount.clientHeight);
           composer.setPixelRatio(renderer.getPixelRatio());
           composer.setSize(mount.clientWidth, mount.clientHeight);
           setManifest(world.manifest);
           setGenerationError(null);
-          setGenerationStatus('ready');
+          if (soakRemaining > 0) {
+            soakRemaining -= 1;
+            soakCompleted += 1;
+            const running = soakRemaining > 0;
+            if (!running) soakFinalSampleFrames = 2;
+            setSoakAudit({
+              running: true,
+              completed: soakCompleted,
+              total: 20,
+              baselineGeometries: soakBaselineGeometries,
+              finalGeometries: null,
+            });
+            setGenerationStatus('building');
+            if (running) rebuildRequested = true;
+          } else {
+            setGenerationStatus('ready');
+          }
         } catch (error) {
+          soakRemaining = 0;
+          setSoakAudit((audit) => ({ ...audit, running: false, finalGeometries: renderer.info.memory.geometries }));
           setGenerationError(error instanceof Error ? error.message : 'World generation failed.');
           setGenerationStatus('error');
         }
@@ -602,14 +672,14 @@ export default function Home() {
       scene.fog = fogRef.current ? atmosphericFog : null;
       renderer.toneMappingExposure = postRef.current ? 1.05 : 0.82;
       bloomPass.strength = qualityRef.current === 'low' ? 0.28 : qualityRef.current === 'medium' ? 0.48 : 0.62;
-      world.waterMaterial.uniforms.uTime.value = elapsed;
+      world.waterMaterial.uniforms.uTime.value = animationTime;
       world.waterMaterial.uniforms.uWaveStrength.value = waterMotionRef.current;
-      world.magicMaterial.uniforms.uTime.value = elapsed;
+      world.magicMaterial.uniforms.uTime.value = animationTime;
       world.zoneDebug.visible = zoneDebugRef.current;
-      const stairPhase = (elapsed % 16) / 16;
+      const stairPhase = (animationTime % 16) / 16;
       const stairBlend = stairPhase < 0.5 ? THREE.MathUtils.smoothstep(stairPhase, 0.08, 0.42) : 1 - THREE.MathUtils.smoothstep(stairPhase, 0.58, 0.92);
-      world.stairRoot.rotation.y = THREE.MathUtils.lerp(-0.42, 0.7, stairBlend);
-      world.candleRoot.position.y = Math.sin(elapsed * 0.8) * 0.24;
+      world.stairRoot.quaternion.slerpQuaternions(world.stairTargets[0], world.stairTargets[1], stairBlend);
+      world.candleRoot.position.y = Math.sin(animationTime * 0.8) * 0.24;
 
       const currentMode = modeRef.current;
       if (currentMode !== lastMode) {
@@ -672,8 +742,23 @@ export default function Home() {
         camera.position.addScaledVector(velocity, delta);
         camera.position.y = Math.max(camera.position.y, terrainHeight(camera.position.x, camera.position.z, hashSeed(seedRef.current)) + 1.8);
       }
+      renderer.info.reset();
       if (postRef.current) composer.render(delta);
       else renderer.render(scene, camera);
+
+      if (soakFinalSampleFrames > 0) {
+        soakFinalSampleFrames -= 1;
+        if (soakFinalSampleFrames === 0) {
+          setSoakAudit({
+            running: false,
+            completed: soakCompleted,
+            total: 20,
+            baselineGeometries: soakBaselineGeometries,
+            finalGeometries: renderer.info.memory.geometries,
+          });
+          setGenerationStatus('ready');
+        }
+      }
 
       framesSinceSample += 1;
       if (elapsed - sampleStarted > 0.65) {
@@ -681,6 +766,11 @@ export default function Home() {
           fps: Math.round(framesSinceSample / Math.max(0.001, elapsed - sampleStarted)),
           calls: renderer.info.render.calls,
           triangles: renderer.info.render.triangles,
+          geometries: renderer.info.memory.geometries,
+          textures: renderer.info.memory.textures,
+          generationMs: Math.round(lastGenerationMs),
+          disposedGeometries: lastDisposal.geometries,
+          disposedMaterials: lastDisposal.materials,
         });
         framesSinceSample = 0;
         sampleStarted = elapsed;
@@ -703,6 +793,7 @@ export default function Home() {
       cancelAnimationFrame(frame);
       window.removeEventListener('resize', resize);
       window.removeEventListener('wizard-rebuild', rebuild);
+      window.removeEventListener('wizard-soak', runSoak);
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
       window.removeEventListener('mouseup', onPointerUp);
@@ -759,6 +850,12 @@ export default function Home() {
     setGenerationStatus('building');
     window.dispatchEvent(new Event('wizard-rebuild'));
   }, []);
+
+  const runSoakAudit = useCallback(() => {
+    if (soakAudit.running) return;
+    setHudOpen(true);
+    window.dispatchEvent(new Event('wizard-soak'));
+  }, [soakAudit.running]);
 
   const selectMode = useCallback((nextMode: CameraMode) => {
     modeRef.current = nextMode;
@@ -830,7 +927,7 @@ export default function Home() {
       </section>
       <aside className={`performance-hud ${hudOpen ? 'is-open' : ''}`} aria-hidden={!hudOpen}>
         <header><span>Field diagnostics</span><button onClick={() => setHudOpen(false)}>×</button></header>
-        <dl><div><dt>Frame rate</dt><dd>{stats.fps} <small>FPS</small></dd></div><div><dt>Draw calls</dt><dd>{stats.calls}</dd></div><div><dt>Triangles</dt><dd>{Math.round(stats.triangles / 1000)}k</dd></div><div><dt>Manifest</dt><dd>{manifest.manifestHash}</dd></div></dl>
+        <dl><div><dt>Frame rate</dt><dd>{stats.fps} <small>FPS</small></dd></div><div><dt>Draw calls</dt><dd>{stats.calls}</dd></div><div><dt>Triangles</dt><dd>{Math.round(stats.triangles / 1000)}k</dd></div><div><dt>GPU resources</dt><dd>{stats.geometries}G · {stats.textures}T</dd></div><div><dt>Generation</dt><dd>{stats.generationMs} <small>MS</small></dd></div><div><dt>Last disposal</dt><dd>{stats.disposedGeometries}G · {stats.disposedMaterials}M</dd></div><div><dt>Castle graph</dt><dd>{manifest.castleGraph.nodes.length}N · {manifest.castleGraph.edges.length}E</dd></div><div><dt>Manifest</dt><dd>{manifest.manifestHash}</dd></div></dl>
         <section className="quality-controls">
           <label>Quality tier</label>
           <div>{(['low', 'medium', 'high'] as QualityTier[]).map((tier) => <button key={tier} className={quality === tier ? 'active' : ''} onClick={() => selectQuality(tier)}>{tier}</button>)}</div>
@@ -840,12 +937,14 @@ export default function Home() {
           <label><span>Cinematic grade</span><input type="checkbox" checked={postEnabled} onChange={(event) => setPostEnabled(event.target.checked)} /></label>
           <label><span>Zone boundaries</span><input type="checkbox" checked={zoneDebugEnabled} onChange={(event) => setZoneDebugEnabled(event.target.checked)} /></label>
           <label><span>Reduced camera motion</span><input type="checkbox" checked={reducedMotion} onChange={(event) => setReducedMotion(event.target.checked)} /></label>
+          <label><span>Ambient animation</span><input type="checkbox" checked={!ambientPaused} onChange={(event) => setAmbientPaused(!event.target.checked)} /></label>
         </section>
         <section className="water-control">
           <label htmlFor="water-motion"><span>Water motion</span><output>{waterMotion.toFixed(1)}×</output></label>
           <input id="water-motion" type="range" min="0" max="1.6" step="0.1" value={waterMotion} onChange={(event) => setWaterMotion(Number(event.target.value))} />
         </section>
         <p>Generator {manifest.generatorVersion} · {manifest.counts.trees} trees<br />WebGL 2 · Seed {manifest.seedHash}</p>
+        <button className="soak-audit" onClick={runSoakAudit} disabled={soakAudit.running}>{soakAudit.running ? `Rebuild audit ${soakAudit.completed}/${soakAudit.total}` : soakAudit.finalGeometries === null ? 'Run 20× rebuild audit' : `${Math.abs(soakAudit.baselineGeometries - soakAudit.finalGeometries) <= 1 ? 'Audit clean' : 'Audit drift'} · ${soakAudit.baselineGeometries}→${soakAudit.finalGeometries} geometries`}</button>
         <button className="manifest-copy" onClick={copyManifest}>{manifestCopied ? 'Manifest copied' : 'Copy world manifest'}</button>
       </aside>
       <footer className="scene-footer">
