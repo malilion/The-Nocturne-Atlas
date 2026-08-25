@@ -42,12 +42,14 @@ const FIXED_SCENE_LABELS: Partial<Record<FixedView['id'], string>> = {
   'aerial-orbit': 'Aerial',
   'great-hall': 'Hall',
   'station-hall': 'Waiting Hall',
+  'library-hall': 'Library',
 };
 const FIXED_SCENE_SHORTCUTS: Partial<Record<FixedView['id'], string>> = {
   'courtyard-stair': '9',
   'aerial-orbit': '0',
   'great-hall': 'H',
   'station-hall': 'I',
+  'library-hall': 'L',
 };
 interface PerformanceStats {
   fps: number;
@@ -1362,6 +1364,7 @@ export default function Home() {
       if (key === '0') selectFixedView('aerial-orbit');
       if (key === 'h') selectFixedView('great-hall');
       if (key === 'i') selectFixedView('station-hall');
+      if (key === 'l') selectFixedView('library-hall');
       if (key === 'n') toggleTimeOfDay();
       if (key === 'm') toggleAudio();
       if (key === ' ' && modeRef.current === 'tour') {
@@ -1456,7 +1459,7 @@ export default function Home() {
         {soakAudit.finalHeapMb !== null && <p className="audit-heap">Heap sample · {soakAudit.baselineHeapMb ?? 'N/A'}→{soakAudit.finalHeapMb} MB</p>}
         <button className="manifest-copy" onClick={copyManifest}>{manifestCopied ? 'Manifest copied' : 'Copy world manifest'}</button>
       </aside>
-      {entered && <nav className="scene-switcher" aria-label="Scene selection"><span>Jump to</span>{manifest.cameraLandmarks.map((landmark, index) => <button key={landmark.id} className={!fixedView && tourLocation.id === landmark.id && (mode === 'tour' || mode === 'orbit') ? 'active' : ''} onClick={() => selectScene(landmark.id)} aria-label={`Go to ${landmark.label}`}><kbd>{index + 1}</kbd>{SCENE_LABELS[landmark.id]}</button>)}{manifest.validationViews.filter((view) => view.id === 'courtyard-stair' || view.id === 'aerial-orbit' || view.id === 'great-hall' || view.id === 'station-hall').map((view) => <button key={view.id} className={fixedView?.id === view.id ? 'active' : ''} onClick={() => selectFixedView(view.id)} aria-label={`Go to ${view.label}`}><kbd>{FIXED_SCENE_SHORTCUTS[view.id]}</kbd>{FIXED_SCENE_LABELS[view.id]}</button>)}</nav>}
+      {entered && <nav className="scene-switcher" aria-label="Scene selection"><span>Jump to</span>{manifest.cameraLandmarks.map((landmark, index) => <button key={landmark.id} className={!fixedView && tourLocation.id === landmark.id && (mode === 'tour' || mode === 'orbit') ? 'active' : ''} onClick={() => selectScene(landmark.id)} aria-label={`Go to ${landmark.label}`}><kbd>{index + 1}</kbd>{SCENE_LABELS[landmark.id]}</button>)}{manifest.validationViews.filter((view) => view.id === 'courtyard-stair' || view.id === 'aerial-orbit' || view.id === 'great-hall' || view.id === 'station-hall' || view.id === 'library-hall').map((view) => <button key={view.id} className={fixedView?.id === view.id ? 'active' : ''} onClick={() => selectFixedView(view.id)} aria-label={`Go to ${view.label}`}><kbd>{FIXED_SCENE_SHORTCUTS[view.id]}</kbd>{FIXED_SCENE_LABELS[view.id]}</button>)}</nav>}
       <footer className="scene-footer">
         <div className="landmark-caption"><span>{fixedView ? 'V' : mode === 'tour' ? String(manifest.cameraLandmarks.findIndex((landmark) => landmark.id === tourLocation.id) + 1).padStart(2, '0') : mode === 'walk' ? 'G' : mode === 'fly' ? 'F' : 'O'}</span><p><strong>{fixedView ? fixedView.label : mode === 'tour' ? tourLocation.label : mode === 'walk' ? 'Ground walk' : mode === 'fly' ? 'Free flight' : `${tourLocation.label} orbit`}</strong><small>{fixedView ? fixedView.subtitle : mode === 'tour' ? tourLocation.subtitle : mode === 'walk' ? 'Terrain-bound collision navigation' : mode === 'fly' ? 'Manual navigation' : 'Drag to inspect · Auto resumes on release'}</small></p>{mode === 'tour' && <button className="tour-pause" onClick={toggleTourPause}>{tourPaused ? 'Resume' : 'Pause'}</button>}</div>
         <nav className="camera-modes" aria-label="Camera mode">

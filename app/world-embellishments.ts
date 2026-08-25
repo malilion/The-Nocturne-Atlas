@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { createLibraryHallInterior } from './library-hall.ts';
 import { seededStream, terrainHeight, type QualityTier, type WorldManifest } from './world-core.ts';
 
 export interface EmbellishmentMaterials {
@@ -48,11 +49,7 @@ export function createCastleEmbellishments(manifest: WorldManifest, materials: E
   const library = new THREE.Group();
   library.name = 'west-library-wing';
   library.position.set(-24.5, baseY, -7);
-  const libraryBody = new THREE.Mesh(new THREE.BoxGeometry(11, 7.4, 6.2), materials.stone);
-  libraryBody.position.y = 3.7;
-  libraryBody.castShadow = true;
-  libraryBody.receiveShadow = true;
-  library.add(libraryBody);
+  library.add(createLibraryHallInterior(manifest.seed, materials));
   const libraryRoof = new THREE.Mesh(new THREE.ConeGeometry(5.7, 4.4, 4), materials.roof);
   libraryRoof.name = 'library-pyramidal-roof';
   libraryRoof.position.y = 9.1;

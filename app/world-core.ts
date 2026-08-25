@@ -39,7 +39,7 @@ export interface VillageBuildingPlan {
 }
 
 export interface ValidationView {
-  id: 'castle-hero' | 'courtyard-stair' | 'village-approach' | 'forest-edge' | 'lake-shore' | 'aerial-orbit' | 'great-hall' | 'station-hall';
+  id: 'castle-hero' | 'courtyard-stair' | 'village-approach' | 'forest-edge' | 'lake-shore' | 'aerial-orbit' | 'great-hall' | 'station-hall' | 'library-hall';
   label: string;
   subtitle: string;
   position: [number, number, number];
@@ -55,7 +55,7 @@ export interface WorldValidationReport {
 export interface WorldManifest {
   seed: string;
   seedHash: number;
-  generatorVersion: '2.7.0';
+  generatorVersion: '2.8.0';
   manifestHash: string;
   quality: QualityTier;
   towerHeights: number[];
@@ -161,11 +161,12 @@ export function createWorldManifest(seedText: string, quality: QualityTier): Wor
     { id: 'aerial-orbit', label: 'Aerial Survey', subtitle: 'World zoning overview', position: [2 + validationCamera() * 4, 68 + validationCamera() * 4, 64 + validationCamera() * 5], target: [-7, 1, -4] },
     { id: 'great-hall', label: 'The Great Hall', subtitle: 'Seeded castle interior', position: [-8, castleBaseY + 3.2, 0], target: [-8, castleBaseY + 2.8, -8] },
     { id: 'station-hall', label: 'Veilcross Waiting Hall', subtitle: 'Inspect the sealed midnight departure', position: [-53, stationBaseY + 2.45, -30.15], target: [-53, stationBaseY + 3.35, -36.15] },
+    { id: 'library-hall', label: 'Veyra Archive Library', subtitle: 'Seeded books and memory research', position: [-24.5, castleBaseY + 2.45, -4.35], target: [-24.5, castleBaseY + 2.9, -9.65] },
   ].map((view) => ({
     ...view,
     position: [
       Number(view.position[0].toFixed(3)),
-      Number(Math.max(view.position[1], terrainHeight(view.position[0], view.position[2], seedHash) + (view.id === 'great-hall' || view.id === 'station-hall' ? 1.7 : 7)).toFixed(3)),
+      Number(Math.max(view.position[1], terrainHeight(view.position[0], view.position[2], seedHash) + (view.id === 'great-hall' || view.id === 'station-hall' || view.id === 'library-hall' ? 1.7 : 7)).toFixed(3)),
       Number(view.position[2].toFixed(3)),
     ],
   })) as ValidationView[];
@@ -218,7 +219,7 @@ export function createWorldManifest(seedText: string, quality: QualityTier): Wor
   const base = {
     seed,
     seedHash,
-    generatorVersion: '2.7.0' as const,
+    generatorVersion: '2.8.0' as const,
     quality,
     towerHeights,
     castleGraph,
@@ -351,12 +352,12 @@ export function validateWorldManifest(manifest: WorldManifest): WorldValidationR
     const ground = terrainHeight(landmark.position[0], landmark.position[2], manifest.seedHash);
     if (landmark.position[1] < ground + 6.8) errors.push(`Camera landmark intersects terrain: ${landmark.id}`);
   }
-  const expectedValidationViews: ValidationView['id'][] = ['castle-hero', 'courtyard-stair', 'village-approach', 'forest-edge', 'lake-shore', 'aerial-orbit', 'great-hall', 'station-hall'];
+  const expectedValidationViews: ValidationView['id'][] = ['castle-hero', 'courtyard-stair', 'village-approach', 'forest-edge', 'lake-shore', 'aerial-orbit', 'great-hall', 'station-hall', 'library-hall'];
   if (manifest.validationViews.length !== expectedValidationViews.length || expectedValidationViews.some((id) => !manifest.validationViews.some((view) => view.id === id))) errors.push('Fixed visual validation views are incomplete.');
   for (const view of manifest.validationViews) {
     if (![...view.position, ...view.target].every(Number.isFinite)) errors.push(`Invalid visual validation view: ${view.id}`);
     const ground = terrainHeight(view.position[0], view.position[2], manifest.seedHash);
-    const minimumClearance = view.id === 'great-hall' || view.id === 'station-hall' ? 1.6 : 6.8;
+    const minimumClearance = view.id === 'great-hall' || view.id === 'station-hall' || view.id === 'library-hall' ? 1.6 : 6.8;
     if (view.position[1] < ground + minimumClearance) errors.push(`Visual validation view intersects terrain: ${view.id}`);
   }
   if (manifest.cameraLandmarks.length >= 4) {
