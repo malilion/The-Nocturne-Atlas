@@ -12,6 +12,8 @@ An original, seed-driven 3D wizarding world built with Three.js and TypeScript. 
 
 The seed panel accepts any text. Re-entering the same seed recreates the same world. The HUD shows live frame rate, draw calls, and triangle count.
 
+The HUD also exposes real Low, Medium, and High quality tiers, atmospheric fog and cinematic grading toggles, and the deterministic world manifest. Quality tiers change render scale and instance density rather than acting as labels only.
+
 ## Local development
 
 ```bash
@@ -20,6 +22,8 @@ npm run dev
 ```
 
 Create a production build with `npm run build`.
+
+Run the deterministic regression suite with `npm test`. It checks manifest repeatability, forked seed streams, twenty fixed seeds, finite terrain samples, and the ban on `Math.random()` inside generation code.
 
 ## Implementation notes
 

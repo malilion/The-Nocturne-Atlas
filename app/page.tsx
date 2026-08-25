@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
+import { createWorldManifest, hashSeed, mulberry32, terrainHeight, type QualityTier, type WorldManifest } from './world-core';
 
 const DEFAULT_SEED = 'MAGIC-001';
 type CameraMode = 'tour' | 'fly' | 'orbit';
@@ -10,37 +11,6 @@ interface PerformanceStats {
   fps: number;
   calls: number;
   triangles: number;
-}
-
-function hashSeed(value: string) {
-  let hash = 2166136261;
-  for (let i = 0; i < value.length; i += 1) {
-    hash ^= value.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  return hash >>> 0;
-}
-
-function mulberry32(seed: number) {
-  return () => {
-    let t = (seed += 0x6d2b79f5);
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function seededNoise(x: number, z: number, seed: number) {
-  const value = Math.sin(x * 12.9898 + z * 78.233 + seed * 0.001) * 43758.5453;
-  return value - Math.floor(value);
-}
-
-function terrainHeight(x: number, z: number, seed: number) {
-  const broad = Math.sin(x * 0.045 + seed) * 1.8 + Math.cos(z * 0.052 - seed) * 1.4;
-  const detail = (seededNoise(Math.floor(x * 0.2), Math.floor(z * 0.2), seed) - 0.5) * 1.4;
-  const castleRise = 8 * Math.exp(-((x + 7) ** 2 + (z + 4) ** 2) / 580);
-  const lakeBasin = 5.5 * Math.exp(-((x - 28) ** 2 + (z - 18) ** 2) / 700);
-  return broad + detail + castleRise - lakeBasin;
 }
 
 function disposeObject(root: THREE.Object3D) {
@@ -56,12 +26,32 @@ function disposeObject(root: THREE.Object3D) {
   materials.forEach((material) => material.dispose());
 }
 
-function createWorld(scene: THREE.Scene, seedText: string) {
-  const seed = hashSeed(seedText);
-  const random = mulberry32(seed);
+function createWorld(scene: THREE.Scene, seedText: string, quality: QualityTier) {
+  const manifest = createWorldManifest(seedText, quality);
+  const seed = manifest.seedHash;
+  const random = mulberry32(hashSeed(`${manifest.seed}::world`));
   const root = new THREE.Group();
   root.name = `world-${seedText}`;
   scene.add(root);
+
+  const starRandom = mulberry32(hashSeed(`${manifest.seed}::atmosphere/stars`));
+  const starCount = quality === 'low' ? 280 : quality === 'medium' ? 620 : 1100;
+  const starPositions = new Float32Array(starCount * 3);
+  for (let index = 0; index < starCount; index += 1) {
+    const azimuth = starRandom() * Math.PI * 2;
+    const elevation = 0.12 + starRandom() * 1.22;
+    const distance = 118 + starRandom() * 30;
+    starPositions[index * 3] = Math.cos(azimuth) * Math.cos(elevation) * distance;
+    starPositions[index * 3 + 1] = Math.sin(elevation) * distance;
+    starPositions[index * 3 + 2] = Math.sin(azimuth) * Math.cos(elevation) * distance;
+  }
+  const starGeometry = new THREE.BufferGeometry();
+  starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+  const stars = new THREE.Points(
+    starGeometry,
+    new THREE.PointsMaterial({ color: 0xbfcbe2, size: quality === 'high' ? 0.28 : 0.34, transparent: true, opacity: 0.72, depthWrite: false, fog: false }),
+  );
+  root.add(stars);
 
   const terrainGeometry = new THREE.PlaneGeometry(150, 150, 96, 96);
   terrainGeometry.rotateX(-Math.PI / 2);
@@ -112,10 +102,10 @@ function createWorld(scene: THREE.Scene, seedText: string) {
     castle.add(tower);
   };
 
-  addTower(-9, -3, 3.6, 18 + random() * 4, 0.4);
-  addTower(7, -5, 3, 23 + random() * 5, 1.4);
-  addTower(2, 8, 4, 16 + random() * 4, 0.8);
-  addTower(-12, 8, 2.7, 14 + random() * 5, 1.9);
+  addTower(-9, -3, 3.6, manifest.towerHeights[0], 0.4);
+  addTower(7, -5, 3, manifest.towerHeights[1], 1.4);
+  addTower(2, 8, 4, manifest.towerHeights[2], 0.8);
+  addTower(-12, 8, 2.7, manifest.towerHeights[3], 1.9);
 
   const hall = new THREE.Mesh(new THREE.BoxGeometry(17, 9, 10), stone);
   hall.position.set(-1, 4.5, 0);
@@ -180,15 +170,15 @@ function createWorld(scene: THREE.Scene, seedText: string) {
 
   const trunkGeometry = new THREE.CylinderGeometry(0.22, 0.42, 3.5, 6);
   const trunkMaterial = new THREE.MeshStandardMaterial({ color: 0x1d1615, roughness: 1 });
-  const trunks = new THREE.InstancedMesh(trunkGeometry, trunkMaterial, 260);
+  const trunks = new THREE.InstancedMesh(trunkGeometry, trunkMaterial, manifest.counts.trees);
   const canopyGeometry = new THREE.ConeGeometry(1.5, 5.2, 7);
   const canopyMaterial = new THREE.MeshStandardMaterial({ color: 0x111c18, roughness: 0.94 });
-  const canopies = new THREE.InstancedMesh(canopyGeometry, canopyMaterial, 260);
+  const canopies = new THREE.InstancedMesh(canopyGeometry, canopyMaterial, manifest.counts.trees);
   const matrix = new THREE.Matrix4();
   const quaternion = new THREE.Quaternion();
   const scale = new THREE.Vector3();
   const position = new THREE.Vector3();
-  for (let i = 0; i < 260; i += 1) {
+  for (let i = 0; i < manifest.counts.trees; i += 1) {
     let x = 0;
     let z = 0;
     do {
@@ -214,8 +204,8 @@ function createWorld(scene: THREE.Scene, seedText: string) {
 
   const fireflyGeometry = new THREE.SphereGeometry(0.08, 5, 5);
   const fireflyMaterial = new THREE.MeshBasicMaterial({ color: 0xb9ffb0, toneMapped: false });
-  const fireflies = new THREE.InstancedMesh(fireflyGeometry, fireflyMaterial, 90);
-  for (let i = 0; i < 90; i += 1) {
+  const fireflies = new THREE.InstancedMesh(fireflyGeometry, fireflyMaterial, manifest.counts.fireflies);
+  for (let i = 0; i < manifest.counts.fireflies; i += 1) {
     const x = -50 + random() * 100;
     const z = -50 + random() * 100;
     const y = terrainHeight(x, z, seed) + 1.5 + random() * 5;
@@ -238,7 +228,7 @@ function createWorld(scene: THREE.Scene, seedText: string) {
   road.position.set(-31, terrainHeight(-31, 13, seed) + 0.12, 13);
   road.receiveShadow = true;
   village.add(road);
-  for (let i = 0; i < 16; i += 1) {
+  for (let i = 0; i < manifest.counts.houses; i += 1) {
     const side = i % 2 === 0 ? -1 : 1;
     const x = -49 + Math.floor(i / 2) * 5.2 + random() * 1.1;
     const z = 13 + side * (4.2 + random() * 2.5);
@@ -292,9 +282,9 @@ function createWorld(scene: THREE.Scene, seedText: string) {
   const waxMaterial = new THREE.MeshStandardMaterial({ color: 0xe5ddc4, roughness: 0.7 });
   const flameGeometry = new THREE.SphereGeometry(0.095, 5, 5);
   const flameMaterial = new THREE.MeshBasicMaterial({ color: 0xffa63e, toneMapped: false });
-  const wax = new THREE.InstancedMesh(waxGeometry, waxMaterial, 120);
-  const flames = new THREE.InstancedMesh(flameGeometry, flameMaterial, 120);
-  for (let i = 0; i < 120; i += 1) {
+  const wax = new THREE.InstancedMesh(waxGeometry, waxMaterial, manifest.counts.candles);
+  const flames = new THREE.InstancedMesh(flameGeometry, flameMaterial, manifest.counts.candles);
+  for (let i = 0; i < manifest.counts.candles; i += 1) {
     const angle = random() * Math.PI * 2;
     const radius = 7 + random() * 15;
     const x = -7 + Math.cos(angle) * radius;
@@ -312,35 +302,49 @@ function createWorld(scene: THREE.Scene, seedText: string) {
   moon.position.set(-52, 44, -62);
   root.add(moon);
 
-  return { root, waterMaterial, stairRoot, candleRoot };
+  return { root, waterMaterial, stairRoot, candleRoot, manifest };
 }
 
 export default function Home() {
   const mountRef = useRef<HTMLDivElement>(null);
   const seedRef = useRef(DEFAULT_SEED);
   const modeRef = useRef<CameraMode>('tour');
+  const qualityRef = useRef<QualityTier>('medium');
+  const fogRef = useRef(true);
+  const postRef = useRef(true);
   const [seed, setSeed] = useState(DEFAULT_SEED);
   const [activeSeed, setActiveSeed] = useState(DEFAULT_SEED);
   const [copied, setCopied] = useState(false);
+  const [manifestCopied, setManifestCopied] = useState(false);
   const [mode, setMode] = useState<CameraMode>('tour');
+  const [quality, setQuality] = useState<QualityTier>('medium');
+  const [fogEnabled, setFogEnabled] = useState(true);
+  const [postEnabled, setPostEnabled] = useState(true);
+  const [manifest, setManifest] = useState<WorldManifest>(() => createWorldManifest(DEFAULT_SEED, 'medium'));
+  const [generationStatus, setGenerationStatus] = useState<'ready' | 'building'>('ready');
   const [stats, setStats] = useState<PerformanceStats>({ fps: 60, calls: 0, triangles: 0 });
   const [hudOpen, setHudOpen] = useState(false);
 
   useEffect(() => { seedRef.current = activeSeed; }, [activeSeed]);
   useEffect(() => { modeRef.current = mode; }, [mode]);
+  useEffect(() => { qualityRef.current = quality; }, [quality]);
+  useEffect(() => { fogRef.current = fogEnabled; }, [fogEnabled]);
+  useEffect(() => { postRef.current = postEnabled; }, [postEnabled]);
 
   useEffect(() => {
     const mount = mountRef.current;
     if (!mount) return;
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x05070d);
-    scene.fog = new THREE.FogExp2(0x090d15, 0.012);
+    const atmosphericFog = new THREE.FogExp2(0x090d15, 0.012);
+    scene.fog = atmosphericFog;
     const camera = new THREE.PerspectiveCamera(48, mount.clientWidth / mount.clientHeight, 0.1, 350);
     const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.7));
+    const renderScale = () => qualityRef.current === 'low' ? 1 : qualityRef.current === 'medium' ? 1.55 : 2;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, renderScale()));
     renderer.setSize(mount.clientWidth, mount.clientHeight);
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.type = THREE.PCFShadowMap;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.05;
@@ -357,8 +361,8 @@ export default function Home() {
     moonLight.shadow.camera.bottom = -70;
     scene.add(hemisphere, moonLight);
 
-    let world = createWorld(scene, seedRef.current);
-    const clock = new THREE.Clock();
+    let world = createWorld(scene, seedRef.current, qualityRef.current);
+    const startedAt = performance.now();
     let frame = 0;
     let rebuildRequested = false;
     let previousElapsed = 0;
@@ -408,15 +412,21 @@ export default function Home() {
 
     const render = () => {
       frame = requestAnimationFrame(render);
-      const elapsed = clock.getElapsedTime();
+      const elapsed = (performance.now() - startedAt) / 1000;
       const delta = Math.min(0.05, elapsed - previousElapsed);
       previousElapsed = elapsed;
       if (rebuildRequested) {
         disposeObject(world.root);
         scene.remove(world.root);
-        world = createWorld(scene, seedRef.current);
+        world = createWorld(scene, seedRef.current, qualityRef.current);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, renderScale()));
+        renderer.setSize(mount.clientWidth, mount.clientHeight);
+        setManifest(world.manifest);
+        setGenerationStatus('ready');
         rebuildRequested = false;
       }
+      scene.fog = fogRef.current ? atmosphericFog : null;
+      renderer.toneMappingExposure = postRef.current ? 1.05 : 0.82;
       world.waterMaterial.uniforms.uTime.value = elapsed;
       const stairPhase = (elapsed % 16) / 16;
       const stairBlend = stairPhase < 0.5 ? THREE.MathUtils.smoothstep(stairPhase, 0.08, 0.42) : 1 - THREE.MathUtils.smoothstep(stairPhase, 0.58, 0.92);
@@ -489,6 +499,7 @@ export default function Home() {
       const height = mount.clientHeight;
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, renderScale()));
       renderer.setSize(width, height);
     };
     window.addEventListener('resize', resize);
@@ -514,6 +525,7 @@ export default function Home() {
     setSeed(normalized);
     setActiveSeed(normalized);
     seedRef.current = normalized;
+    setGenerationStatus('building');
     window.dispatchEvent(new Event('wizard-rebuild'));
   }, [seed]);
 
@@ -523,6 +535,12 @@ export default function Home() {
     window.setTimeout(() => setCopied(false), 1400);
   }, [activeSeed]);
 
+  const copyManifest = useCallback(async () => {
+    await navigator.clipboard.writeText(JSON.stringify(manifest, null, 2));
+    setManifestCopied(true);
+    window.setTimeout(() => setManifestCopied(false), 1400);
+  }, [manifest]);
+
   const randomSeed = useCallback(() => {
     const values = new Uint32Array(1);
     crypto.getRandomValues(values);
@@ -530,6 +548,15 @@ export default function Home() {
     setSeed(next);
     setActiveSeed(next);
     seedRef.current = next;
+    setGenerationStatus('building');
+    window.dispatchEvent(new Event('wizard-rebuild'));
+  }, []);
+
+  const selectQuality = useCallback((nextQuality: QualityTier) => {
+    if (nextQuality === qualityRef.current) return;
+    qualityRef.current = nextQuality;
+    setQuality(nextQuality);
+    setGenerationStatus('building');
     window.dispatchEvent(new Event('wizard-rebuild'));
   }, []);
 
@@ -554,7 +581,7 @@ export default function Home() {
 
   return (
     <main className="experience-shell">
-      <div ref={mountRef} className="world-canvas" aria-label="Procedurally generated moonlit wizarding world" />
+      <div ref={mountRef} className={`world-canvas ${postEnabled ? '' : 'no-post'}`} aria-label="Procedurally generated moonlit wizarding world" />
       <div className="atmosphere" aria-hidden="true" />
       <div className="edge-runes" aria-hidden="true">✦　·　✧　·　✦</div>
       <header className="topbar">
@@ -564,7 +591,7 @@ export default function Home() {
         </a>
         <div className="top-actions">
           <button className="perf-button" onClick={() => setHudOpen((open) => !open)} aria-expanded={hudOpen}>HUD</button>
-          <div className="status-pill"><span /> World online</div>
+          <div className={`status-pill ${generationStatus === 'building' ? 'is-building' : ''}`}><span /> {generationStatus === 'building' ? 'Weaving world' : 'World online'}</div>
         </div>
       </header>
       <section className="hero-copy" id="world">
@@ -582,8 +609,17 @@ export default function Home() {
       </section>
       <aside className={`performance-hud ${hudOpen ? 'is-open' : ''}`} aria-hidden={!hudOpen}>
         <header><span>Field diagnostics</span><button onClick={() => setHudOpen(false)}>×</button></header>
-        <dl><div><dt>Frame rate</dt><dd>{stats.fps} <small>FPS</small></dd></div><div><dt>Draw calls</dt><dd>{stats.calls}</dd></div><div><dt>Triangles</dt><dd>{Math.round(stats.triangles / 1000)}k</dd></div><div><dt>Generator</dt><dd>1.0.0</dd></div></dl>
-        <p>Deterministic world stream<br />WebGL 2 · Instanced forest</p>
+        <dl><div><dt>Frame rate</dt><dd>{stats.fps} <small>FPS</small></dd></div><div><dt>Draw calls</dt><dd>{stats.calls}</dd></div><div><dt>Triangles</dt><dd>{Math.round(stats.triangles / 1000)}k</dd></div><div><dt>Manifest</dt><dd>{manifest.manifestHash}</dd></div></dl>
+        <section className="quality-controls">
+          <label>Quality tier</label>
+          <div>{(['low', 'medium', 'high'] as QualityTier[]).map((tier) => <button key={tier} className={quality === tier ? 'active' : ''} onClick={() => selectQuality(tier)}>{tier}</button>)}</div>
+        </section>
+        <section className="effect-toggles">
+          <label><span>Atmospheric fog</span><input type="checkbox" checked={fogEnabled} onChange={(event) => setFogEnabled(event.target.checked)} /></label>
+          <label><span>Cinematic grade</span><input type="checkbox" checked={postEnabled} onChange={(event) => setPostEnabled(event.target.checked)} /></label>
+        </section>
+        <p>Generator {manifest.generatorVersion} · {manifest.counts.trees} trees<br />WebGL 2 · Seed {manifest.seedHash}</p>
+        <button className="manifest-copy" onClick={copyManifest}>{manifestCopied ? 'Manifest copied' : 'Copy world manifest'}</button>
       </aside>
       <footer className="scene-footer">
         <div><span>01</span><p><strong>Castle of Veyra</strong><small>Central highlands</small></p></div>
