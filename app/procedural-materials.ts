@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-type SurfaceKind = 'terrain' | 'stone' | 'roof' | 'wood';
+type SurfaceKind = 'terrain' | 'stone' | 'roof' | 'wood' | 'metal' | 'glass';
 
 const FIELD_FUNCTIONS = `
   uniform float uMaterialSeed;
@@ -67,10 +67,30 @@ const SURFACE_COLOR: Record<SurfaceKind, string> = {
     float bands = sin(vProceduralWorld.y * 7.0 + grain * 4.0) * 0.5 + 0.5;
     diffuseColor.rgb = mix(vec3(0.055, 0.035, 0.028), vec3(0.16, 0.09, 0.055), grain * 0.72 + bands * 0.28);
   `,
+  metal: `
+    float hammered = fieldFbm(vProceduralWorld.xy * 1.35 + vProceduralWorld.z * 0.17);
+    float streaks = smoothstep(0.78, 0.96, fieldNoise(vec2(vProceduralWorld.y * 2.8, vProceduralWorld.x * 0.22 + vProceduralWorld.z * 0.22)));
+    vec3 blackIron = vec3(0.055, 0.065, 0.072);
+    vec3 wornEdge = vec3(0.19, 0.22, 0.23);
+    vec3 verdigris = vec3(0.08, 0.21, 0.18);
+    diffuseColor.rgb = mix(blackIron, wornEdge, hammered * 0.72);
+    diffuseColor.rgb = mix(diffuseColor.rgb, verdigris, streaks * (0.24 + hammered * 0.18));
+  `,
+  glass: `
+    float cathedral = fieldFbm(vProceduralWorld.xy * 0.85 + vProceduralWorld.z * 0.12);
+    float leadX = smoothstep(0.455, 0.49, abs(fract(vProceduralWorld.x * 0.72) - 0.5));
+    float leadY = smoothstep(0.455, 0.49, abs(fract(vProceduralWorld.y * 0.72) - 0.5));
+    float leading = max(leadX, leadY);
+    vec3 midnightGlass = vec3(0.06, 0.17, 0.24);
+    vec3 moonGlass = vec3(0.2, 0.48, 0.52);
+    vec3 amberGlass = vec3(0.62, 0.27, 0.075);
+    diffuseColor.rgb = mix(midnightGlass, moonGlass, cathedral);
+    diffuseColor.rgb = mix(diffuseColor.rgb, amberGlass, smoothstep(0.7, 0.92, cathedral) * 0.48);
+    diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.018, 0.024, 0.028), leading * 0.86);
+  `,
 };
 
-function createSurfaceMaterial(kind: SurfaceKind, seed: number, options: THREE.MeshStandardMaterialParameters) {
-  const material = new THREE.MeshStandardMaterial(options);
+function configureSurfaceMaterial<T extends THREE.MeshStandardMaterial>(material: T, kind: SurfaceKind, seed: number) {
   material.name = `procedural-${kind}`;
   const normalizedSeed = (seed % 9973) / 9973;
   material.onBeforeCompile = (shader) => {
@@ -84,6 +104,10 @@ function createSurfaceMaterial(kind: SurfaceKind, seed: number, options: THREE.M
   };
   material.customProgramCacheKey = () => `nocturne-${kind}-${seed}`;
   return material;
+}
+
+function createSurfaceMaterial(kind: SurfaceKind, seed: number, options: THREE.MeshStandardMaterialParameters) {
+  return configureSurfaceMaterial(new THREE.MeshStandardMaterial(options), kind, seed);
 }
 
 export function createTerrainMaterial(seed: number) {
@@ -100,4 +124,21 @@ export function createRoofMaterial(seed: number) {
 
 export function createWoodMaterial(seed: number) {
   return createSurfaceMaterial('wood', seed, { color: 0xffffff, roughness: 0.88, metalness: 0.01 });
+}
+
+export function createMetalMaterial(seed: number) {
+  return createSurfaceMaterial('metal', seed, { color: 0xffffff, roughness: 0.36, metalness: 0.88 });
+}
+
+export function createGlassMaterial(seed: number) {
+  return configureSurfaceMaterial(new THREE.MeshPhysicalMaterial({
+    color: 0xffffff,
+    roughness: 0.18,
+    metalness: 0,
+    transmission: 0.42,
+    thickness: 0.32,
+    transparent: true,
+    opacity: 0.82,
+    side: THREE.DoubleSide,
+  }), 'glass', seed);
 }

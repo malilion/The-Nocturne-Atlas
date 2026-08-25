@@ -23,6 +23,14 @@ test('walk collision follows rotated village footprints', () => {
   assert.equal(isWalkablePosition({ x: building.position[0], z: building.position[1] + 5 }, manifest), true);
 });
 
+test('walk collision includes visual landmark footprints', () => {
+  const manifest = createWorldManifest('MAGIC-001', 'medium');
+  assert.equal(isWalkablePosition({ x: -24.5, z: -7 }, manifest), false);
+  assert.equal(isWalkablePosition({ x: -48.5, z: 22.2 }, manifest), false);
+  assert.equal(isWalkablePosition({ x: -31, z: 13 }, manifest), false);
+  assert.equal(isWalkablePosition({ x: 18, z: -43 }, manifest), false);
+});
+
 test('walk movement blocks obstacles, slides along them, and returns terrain height', () => {
   const building = manifest.villageBuildings[0];
   const current = { x: building.position[0] - 4, z: building.position[1] - 2 };

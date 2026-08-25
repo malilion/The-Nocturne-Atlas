@@ -54,7 +54,7 @@ export interface WorldValidationReport {
 export interface WorldManifest {
   seed: string;
   seedHash: number;
-  generatorVersion: '1.9.0';
+  generatorVersion: '2.0.0';
   manifestHash: string;
   quality: QualityTier;
   towerHeights: number[];
@@ -212,7 +212,7 @@ export function createWorldManifest(seedText: string, quality: QualityTier): Wor
   const base = {
     seed,
     seedHash,
-    generatorVersion: '1.9.0' as const,
+    generatorVersion: '2.0.0' as const,
     quality,
     towerHeights,
     castleGraph,

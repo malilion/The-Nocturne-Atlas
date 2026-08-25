@@ -5,6 +5,15 @@ export const WALK_PLAYER_RADIUS = 0.55;
 const WORLD_LIMIT = 72.5;
 const LAKE_INNER_RADIUS = 24.25;
 const MAX_STEP_HEIGHT = 1.15;
+const EMBELLISHMENT_BUILDINGS = [
+  { position: [-24.5, -7] as [number, number], width: 11, depth: 6.2, rotation: 0 },
+  { position: [-48.5, 22.2] as [number, number], width: 7.6, depth: 5.2, rotation: -0.14 },
+  { position: [-17.5, 6.2] as [number, number], width: 6.2, depth: 5.2, rotation: -0.1 },
+];
+const EMBELLISHMENT_CIRCLES = [
+  { x: -31, z: 13, radius: 1.9 },
+  { x: 18, z: -43, radius: 3.4 },
+];
 
 export interface WalkPoint {
   x: number;
@@ -24,6 +33,17 @@ function pointInsideRotatedBuilding(point: WalkPoint, building: VillageBuildingP
   const localX = dx * cosine - dz * sine;
   const localZ = dx * sine + dz * cosine;
   return Math.abs(localX) <= building.width / 2 + padding && Math.abs(localZ) <= building.depth / 2 + padding;
+}
+
+function pointInsideEmbellishment(point: WalkPoint, padding: number) {
+  if (EMBELLISHMENT_BUILDINGS.some((building) => pointInsideRotatedBuilding(point, {
+    id: 'embellishment',
+    side: 1,
+    height: 1,
+    roofHeight: 1,
+    ...building,
+  }, padding))) return true;
+  return EMBELLISHMENT_CIRCLES.some((collider) => Math.hypot(point.x - collider.x, point.z - collider.z) <= collider.radius + padding);
 }
 
 function pointInsideCastle(point: WalkPoint, manifest: WorldManifest, padding: number) {
@@ -52,6 +72,7 @@ export function isWalkablePosition(point: WalkPoint, manifest: WorldManifest, pa
   if (lake && Math.hypot(point.x - lake.center[0], point.z - lake.center[1]) < LAKE_INNER_RADIUS + padding) return false;
   if (pointInsideCastle(point, manifest, padding)) return false;
   if (manifest.villageBuildings.some((building) => pointInsideRotatedBuilding(point, building, padding))) return false;
+  if (pointInsideEmbellishment(point, padding)) return false;
   return true;
 }
 
