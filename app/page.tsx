@@ -11,6 +11,16 @@ import { createWorldManifest, hashSeed, mulberry32, terrainHeight, validateWorld
 
 const DEFAULT_SEED = 'MAGIC-001';
 type CameraMode = 'tour' | 'fly' | 'orbit';
+type LandmarkId = WorldManifest['cameraLandmarks'][number]['id'];
+type TimeOfDay = 'day' | 'night';
+
+const SCENE_LABELS: Record<LandmarkId, string> = {
+  castle: 'Castle',
+  village: 'Village',
+  lake: 'Lake',
+  forest: 'Forest',
+  tower: 'Tower',
+};
 
 interface PerformanceStats {
   fps: number;
@@ -67,10 +77,8 @@ function createWorld(seedText: string, quality: QualityTier) {
   }
   const starGeometry = new THREE.BufferGeometry();
   starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
-  const stars = new THREE.Points(
-    starGeometry,
-    new THREE.PointsMaterial({ color: 0xbfcbe2, size: quality === 'high' ? 0.28 : 0.34, transparent: true, opacity: 0.72, depthWrite: false, fog: false }),
-  );
+  const starMaterial = new THREE.PointsMaterial({ color: 0xbfcbe2, size: quality === 'high' ? 0.28 : 0.34, transparent: true, opacity: 0.72, depthWrite: false, fog: false });
+  const stars = new THREE.Points(starGeometry, starMaterial);
   root.add(stars);
 
   const terrainGeometry = new THREE.PlaneGeometry(150, 150, 96, 96);
@@ -431,7 +439,8 @@ function createWorld(seedText: string, quality: QualityTier) {
   candleRoot.add(wax, flames);
   root.add(candleRoot);
 
-  const moon = new THREE.Mesh(new THREE.SphereGeometry(4.3, 32, 32), new THREE.MeshBasicMaterial({ color: new THREE.Color().setRGB(1.25, 1.4, 2.1), toneMapped: false }));
+  const celestialMaterial = new THREE.MeshBasicMaterial({ color: new THREE.Color().setRGB(1.25, 1.4, 2.1), toneMapped: false });
+  const moon = new THREE.Mesh(new THREE.SphereGeometry(4.3, 32, 32), celestialMaterial);
   moon.position.set(-52, 44, -62);
   root.add(moon);
 
@@ -450,7 +459,7 @@ function createWorld(seedText: string, quality: QualityTier) {
   zoneDebug.visible = false;
   root.add(zoneDebug);
 
-  return { root, waterMaterial, magicMaterial, stairRoot, stairTargets, candleRoot, zoneDebug, manifest, validation };
+  return { root, waterMaterial, magicMaterial, stairRoot, stairTargets, candleRoot, zoneDebug, starMaterial, celestialOrb: moon, celestialMaterial, manifest, validation };
 }
 
 export default function Home() {
@@ -465,6 +474,8 @@ export default function Home() {
   const reducedMotionRef = useRef(false);
   const waterMotionRef = useRef(1);
   const ambientPausedRef = useRef(false);
+  const timeOfDayRef = useRef<TimeOfDay>('night');
+  const sceneRequestRef = useRef<LandmarkId | null>(null);
   const [seed, setSeed] = useState(DEFAULT_SEED);
   const [activeSeed, setActiveSeed] = useState(DEFAULT_SEED);
   const [entered, setEntered] = useState(false);
@@ -482,6 +493,7 @@ export default function Home() {
   const [reducedMotion, setReducedMotion] = useState(false);
   const [waterMotion, setWaterMotion] = useState(1);
   const [ambientPaused, setAmbientPaused] = useState(false);
+  const [timeOfDay, setTimeOfDay] = useState<TimeOfDay>('night');
   const [generationStatus, setGenerationStatus] = useState<'ready' | 'building' | 'error'>('ready');
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [stats, setStats] = useState<PerformanceStats>({ fps: 60, calls: 0, triangles: 0, geometries: 0, textures: 0, generationMs: 0, disposedGeometries: 0, disposedMaterials: 0 });
@@ -498,12 +510,32 @@ export default function Home() {
   useEffect(() => { reducedMotionRef.current = reducedMotion; }, [reducedMotion]);
   useEffect(() => { waterMotionRef.current = waterMotion; }, [waterMotion]);
   useEffect(() => { ambientPausedRef.current = ambientPaused; }, [ambientPaused]);
+  useEffect(() => { timeOfDayRef.current = timeOfDay; }, [timeOfDay]);
 
   useEffect(() => {
     const mount = mountRef.current;
     if (!mount) return;
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x05070d);
+    const backgroundColor = new THREE.Color(0x05070d);
+    const nightSky = new THREE.Color(0x05070d);
+    const daySky = new THREE.Color(0x88b9d2);
+    const nightFog = new THREE.Color(0x090d15);
+    const dayFog = new THREE.Color(0x9fc1cc);
+    const nightHemi = new THREE.Color(0x5a6f9a);
+    const dayHemi = new THREE.Color(0xc9e1ea);
+    const nightGround = new THREE.Color(0x11100e);
+    const dayGround = new THREE.Color(0x667058);
+    const nightLight = new THREE.Color(0xb8c9ff);
+    const dayLight = new THREE.Color(0xffe0a8);
+    const nightOrb = new THREE.Color().setRGB(1.25, 1.4, 2.1);
+    const dayOrb = new THREE.Color().setRGB(4.2, 2.8, 1.25);
+    const nightWater = new THREE.Color(0xb9cbff);
+    const dayWater = new THREE.Color(0xffd69b);
+    const nightLightPosition = new THREE.Vector3(-35, 52, -25);
+    const dayLightPosition = new THREE.Vector3(42, 58, 24);
+    const nightOrbPosition = new THREE.Vector3(-52, 44, -62);
+    const dayOrbPosition = new THREE.Vector3(55, 52, 34);
+    scene.background = backgroundColor;
     const atmosphericFog = new THREE.FogExp2(0x090d15, 0.012);
     scene.fog = atmosphericFog;
     const camera = new THREE.PerspectiveCamera(48, mount.clientWidth / mount.clientHeight, 0.1, 350);
@@ -564,6 +596,7 @@ export default function Home() {
     let soakCompleted = 0;
     let soakBaselineGeometries = 0;
     let soakFinalSampleFrames = 0;
+    let daylightBlend = timeOfDayRef.current === 'day' ? 1 : 0;
     let previousElapsed = 0;
     let framesSinceSample = 0;
     let sampleStarted = 0;
@@ -670,7 +703,22 @@ export default function Home() {
         }
       }
       scene.fog = fogRef.current ? atmosphericFog : null;
-      renderer.toneMappingExposure = postRef.current ? 1.05 : 0.82;
+      const daylightTarget = timeOfDayRef.current === 'day' ? 1 : 0;
+      daylightBlend = THREE.MathUtils.lerp(daylightBlend, daylightTarget, 1 - Math.exp(-delta * 2.4));
+      backgroundColor.lerpColors(nightSky, daySky, daylightBlend);
+      atmosphericFog.color.lerpColors(nightFog, dayFog, daylightBlend);
+      atmosphericFog.density = THREE.MathUtils.lerp(0.012, 0.0065, daylightBlend);
+      hemisphere.color.lerpColors(nightHemi, dayHemi, daylightBlend);
+      hemisphere.groundColor.lerpColors(nightGround, dayGround, daylightBlend);
+      hemisphere.intensity = THREE.MathUtils.lerp(1.3, 2.45, daylightBlend);
+      moonLight.color.lerpColors(nightLight, dayLight, daylightBlend);
+      moonLight.intensity = THREE.MathUtils.lerp(3.2, 4.6, daylightBlend);
+      moonLight.position.lerpVectors(nightLightPosition, dayLightPosition, daylightBlend);
+      world.starMaterial.opacity = THREE.MathUtils.lerp(0.72, 0.025, daylightBlend);
+      world.celestialMaterial.color.lerpColors(nightOrb, dayOrb, daylightBlend);
+      world.celestialOrb.position.lerpVectors(nightOrbPosition, dayOrbPosition, daylightBlend);
+      world.waterMaterial.uniforms.uMoon.value.lerpColors(nightWater, dayWater, daylightBlend);
+      renderer.toneMappingExposure = THREE.MathUtils.lerp(postRef.current ? 1.05 : 0.82, postRef.current ? 1.16 : 1, daylightBlend);
       bloomPass.strength = qualityRef.current === 'low' ? 0.28 : qualityRef.current === 'medium' ? 0.48 : 0.62;
       world.waterMaterial.uniforms.uTime.value = animationTime;
       world.waterMaterial.uniforms.uWaveStrength.value = waterMotionRef.current;
@@ -680,6 +728,21 @@ export default function Home() {
       const stairBlend = stairPhase < 0.5 ? THREE.MathUtils.smoothstep(stairPhase, 0.08, 0.42) : 1 - THREE.MathUtils.smoothstep(stairPhase, 0.58, 0.92);
       world.stairRoot.quaternion.slerpQuaternions(world.stairTargets[0], world.stairTargets[1], stairBlend);
       world.candleRoot.position.y = Math.sin(animationTime * 0.8) * 0.24;
+
+      const requestedScene = sceneRequestRef.current;
+      if (requestedScene) {
+        const sceneIndex = world.manifest.cameraLandmarks.findIndex((landmark) => landmark.id === requestedScene);
+        if (sceneIndex >= 0) {
+          tourHandoffPosition.copy(camera.position);
+          camera.getWorldDirection(forward);
+          tourHandoffTarget.copy(camera.position).addScaledVector(forward, 20);
+          tourHandoffStarted = elapsed;
+          tourTime = (sceneIndex / world.manifest.cameraLandmarks.length) * 52;
+          lastTourIndex = sceneIndex;
+          setTourLocation(world.manifest.cameraLandmarks[sceneIndex]);
+        }
+        sceneRequestRef.current = null;
+      }
 
       const currentMode = modeRef.current;
       if (currentMode !== lastMode) {
@@ -863,6 +926,24 @@ export default function Home() {
     if (nextMode !== 'fly' && document.pointerLockElement) document.exitPointerLock();
   }, []);
 
+  const selectScene = useCallback((sceneId: LandmarkId) => {
+    const landmark = manifest.cameraLandmarks.find((item) => item.id === sceneId);
+    if (!landmark) return;
+    sceneRequestRef.current = sceneId;
+    tourPausedRef.current = false;
+    setTourPaused(false);
+    setTourLocation(landmark);
+    selectMode('tour');
+  }, [manifest, selectMode]);
+
+  const toggleTimeOfDay = useCallback(() => {
+    setTimeOfDay((current) => {
+      const next = current === 'night' ? 'day' : 'night';
+      timeOfDayRef.current = next;
+      return next;
+    });
+  }, []);
+
   const enterRealm = useCallback(() => {
     regenerate();
     selectMode('tour');
@@ -886,6 +967,8 @@ export default function Home() {
       if (key === 'f') selectMode('fly');
       if (key === 'o') selectMode('orbit');
       if (key === 'r') randomSeed();
+      if (key >= '1' && key <= '5') selectScene(manifest.cameraLandmarks[Number(key) - 1].id);
+      if (key === 'n') toggleTimeOfDay();
       if (key === ' ' && modeRef.current === 'tour') {
         event.preventDefault();
         toggleTourPause();
@@ -893,10 +976,10 @@ export default function Home() {
     };
     window.addEventListener('keydown', shortcuts);
     return () => window.removeEventListener('keydown', shortcuts);
-  }, [randomSeed, selectMode, toggleTourPause]);
+  }, [manifest.cameraLandmarks, randomSeed, selectMode, selectScene, toggleTimeOfDay, toggleTourPause]);
 
   return (
-    <main className={`experience-shell ${entered ? 'is-entered' : ''}`}>
+    <main className={`experience-shell ${entered ? 'is-entered' : ''} ${timeOfDay === 'day' ? 'is-day' : 'is-night'}`}>
       <div ref={mountRef} className={`world-canvas ${postEnabled ? '' : 'no-post'}`} aria-label="Procedurally generated moonlit wizarding world" tabIndex={entered ? 0 : -1} />
       <div className="atmosphere" aria-hidden="true" />
       <div className="edge-runes" aria-hidden="true">✦　·　✧　·　✦</div>
@@ -907,6 +990,7 @@ export default function Home() {
         </a>
         <div className="top-actions">
           {entered && <button className="perf-button" onClick={() => setSeedPanelOpen((open) => !open)} aria-expanded={seedPanelOpen}>{seedPanelOpen ? 'Close seed' : 'Seed'}</button>}
+          <button className={`time-toggle is-${timeOfDay}`} onClick={toggleTimeOfDay} aria-label={`Switch to ${timeOfDay === 'night' ? 'day' : 'night'}`} aria-pressed={timeOfDay === 'day'}><span aria-hidden="true">{timeOfDay === 'night' ? '☼' : '☾'}</span>{timeOfDay === 'night' ? 'Day' : 'Night'}</button>
           <button className="perf-button" onClick={() => setHudOpen((open) => !open)} aria-expanded={hudOpen}>HUD</button>
           <div className={`status-pill is-${generationStatus}`}><span /> {generationStatus === 'building' ? 'Weaving world' : generationStatus === 'error' ? 'World retained' : 'World online'}</div>
         </div>
@@ -947,6 +1031,7 @@ export default function Home() {
         <button className="soak-audit" onClick={runSoakAudit} disabled={soakAudit.running}>{soakAudit.running ? `Rebuild audit ${soakAudit.completed}/${soakAudit.total}` : soakAudit.finalGeometries === null ? 'Run 20× rebuild audit' : `${Math.abs(soakAudit.baselineGeometries - soakAudit.finalGeometries) <= 1 ? 'Audit clean' : 'Audit drift'} · ${soakAudit.baselineGeometries}→${soakAudit.finalGeometries} geometries`}</button>
         <button className="manifest-copy" onClick={copyManifest}>{manifestCopied ? 'Manifest copied' : 'Copy world manifest'}</button>
       </aside>
+      {entered && <nav className="scene-switcher" aria-label="Scene selection"><span>Jump to</span>{manifest.cameraLandmarks.map((landmark, index) => <button key={landmark.id} className={tourLocation.id === landmark.id && mode === 'tour' ? 'active' : ''} onClick={() => selectScene(landmark.id)} aria-label={`Go to ${landmark.label}`}><kbd>{index + 1}</kbd>{SCENE_LABELS[landmark.id]}</button>)}</nav>}
       <footer className="scene-footer">
         <div className="landmark-caption"><span>{mode === 'tour' ? String(manifest.cameraLandmarks.findIndex((landmark) => landmark.id === tourLocation.id) + 1).padStart(2, '0') : mode === 'fly' ? 'F' : 'O'}</span><p><strong>{mode === 'tour' ? tourLocation.label : mode === 'fly' ? 'Free flight' : 'Atlas survey'}</strong><small>{mode === 'tour' ? tourLocation.subtitle : mode === 'fly' ? 'Manual navigation' : 'Orbital inspection'}</small></p>{mode === 'tour' && <button className="tour-pause" onClick={toggleTourPause}>{tourPaused ? 'Resume' : 'Pause'}</button>}</div>
         <nav className="camera-modes" aria-label="Camera mode">
