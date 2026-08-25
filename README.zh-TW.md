@@ -8,6 +8,7 @@
 ![Three.js](https://img.shields.io/badge/Three.js-000000?logo=threedotjs&logoColor=white)
 ![Vite](https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=white)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-06B6D4?logo=tailwindcss&logoColor=white)
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
 使用 Three.js 與 TypeScript 打造的原創種子驅動 3D 魔法世界。
 
@@ -139,3 +140,7 @@ npm run dev
 ## 專案範圍
 
 目前版本包含完成度完整的原始垂直切片，以及地面碰撞導航、三個可進入室內場景、兩名具有動作的車站角色、第一條完整固定種子跨區域任務、原創程序化聲景、鏡頭距離區域串流，以及橫跨八個區域的固定種子世界常駐角色群體。
+
+## 授權條款
+
+本專案採用 [MIT](LICENSE) 授權條款。

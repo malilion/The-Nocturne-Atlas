@@ -8,6 +8,7 @@
 ![Three.js](https://img.shields.io/badge/Three.js-000000?logo=threedotjs&logoColor=white)
 ![Vite](https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=white)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-06B6D4?logo=tailwindcss&logoColor=white)
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
 An original, seed-driven 3D wizarding world built with Three.js and TypeScript.
 
@@ -139,3 +140,7 @@ No third-party models, textures, characters, names, or franchise assets are incl
 ## Scope
 
 This repository contains the complete original vertical slice plus grounded collision navigation, three enterable interiors, two animated station characters, the first complete deterministic cross-region quest, an original procedural soundscape, camera-distance region streaming, and a deterministic world-wide resident cast spanning all eight regions.
+
+## License
+
+[MIT](LICENSE)
