@@ -8,9 +8,11 @@ button, input { font: inherit; }
 button { color: inherit; }
 .experience-shell { position: relative; width: 100vw; height: 100svh; overflow: hidden; background: #05070d; }
 .world-canvas, .world-canvas canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.world-canvas:focus { outline: none; }
 .world-canvas canvas { filter: saturate(.82) contrast(1.04); }
 .world-canvas.no-post canvas { filter: none; }
-.atmosphere { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(circle at 21% 24%, rgba(140, 160, 205, .11), transparent 27%), linear-gradient(90deg, rgba(4, 6, 10, .62) 0%, transparent 48%, rgba(3, 5, 8, .18) 100%), linear-gradient(0deg, rgba(3, 5, 8, .55) 0%, transparent 42%); }
+.atmosphere { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(circle at 21% 24%, rgba(140, 160, 205, .11), transparent 27%), linear-gradient(90deg, rgba(4, 6, 10, .62) 0%, transparent 48%, rgba(3, 5, 8, .18) 100%), linear-gradient(0deg, rgba(3, 5, 8, .55) 0%, transparent 42%); transition: opacity .8s ease; }
+.experience-shell.is-entered .atmosphere { opacity: .56; }
 .edge-runes { position: absolute; z-index: 1; top: 50%; right: 23px; color: rgba(225,231,225,.28); font-family: Georgia, serif; font-size: 10px; letter-spacing: .22em; writing-mode: vertical-rl; transform: translateY(-50%); }
 .topbar { position: absolute; z-index: 2; top: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; padding: 24px 34px; border-bottom: 1px solid var(--line); }
 .brand { display: flex; align-items: center; gap: 12px; color: inherit; text-decoration: none; }
@@ -24,11 +26,13 @@ button { color: inherit; }
 .status-pill.is-error span { background: #d98b75; box-shadow: 0 0 9px #d98b75; }
 .top-actions { display: flex; align-items: center; gap: 8px; }
 .perf-button { height: 32px; border: 1px solid var(--line); border-radius: 999px; padding: 0 13px; background: rgba(6,10,14,.35); color: #979e9a; cursor: pointer; font-size: 8px; font-weight: 700; letter-spacing: .16em; }
-.hero-copy { position: absolute; z-index: 2; top: 18%; left: 7.5%; width: min(470px, 42vw); pointer-events: none; }
+.hero-copy { position: absolute; z-index: 2; top: 18%; left: 7.5%; width: min(470px, 42vw); pointer-events: none; transition: opacity .55s ease, transform .65s cubic-bezier(.2,.8,.2,1), filter .55s ease; }
+.experience-shell.is-entered .hero-copy { opacity: 0; filter: blur(5px); transform: translateY(-24px); }
 .eyebrow { margin: 0 0 20px; color: #aab0ad; font-size: 9px; font-weight: 600; letter-spacing: .26em; text-transform: uppercase; }
 .hero-copy h1 { margin: 0; font-family: Georgia, 'Times New Roman', serif; font-size: clamp(42px, 5.3vw, 82px); font-weight: 400; line-height: .98; letter-spacing: -.045em; text-shadow: 0 4px 24px rgba(0,0,0,.48); }
 .intro { max-width: 370px; margin: 25px 0 0; color: #b8bcba; font-family: Georgia, serif; font-size: 14px; font-style: italic; line-height: 1.65; }
-.seed-card { position: absolute; z-index: 3; left: 7.5%; bottom: 18%; width: min(430px, 42vw); border: 1px solid var(--line); border-radius: 4px; padding: 15px; background: var(--glass); box-shadow: 0 20px 60px rgba(0,0,0,.22); backdrop-filter: blur(14px); }
+.seed-card { position: absolute; z-index: 3; left: 7.5%; bottom: 18%; width: min(430px, 42vw); border: 1px solid var(--line); border-radius: 4px; padding: 15px; background: var(--glass); box-shadow: 0 20px 60px rgba(0,0,0,.22); backdrop-filter: blur(14px); transition: opacity .4s ease, transform .5s cubic-bezier(.2,.8,.2,1), visibility .4s; }
+.seed-card.is-collapsed { visibility: hidden; opacity: 0; pointer-events: none; transform: translateY(24px); }
 .seed-card > label { display: block; margin: 0 0 10px; color: #929996; font-size: 8px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; }
 .seed-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
 .seed-row input { min-width: 0; height: 42px; border: 1px solid rgba(236,232,220,.17); border-radius: 2px; outline: none; padding: 0 13px; background: rgba(0,0,0,.2); color: var(--ivory); font-family: 'Courier New', monospace; font-size: 12px; letter-spacing: .12em; }

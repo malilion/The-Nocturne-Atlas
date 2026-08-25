@@ -440,6 +440,8 @@ export default function Home() {
   const waterMotionRef = useRef(1);
   const [seed, setSeed] = useState(DEFAULT_SEED);
   const [activeSeed, setActiveSeed] = useState(DEFAULT_SEED);
+  const [entered, setEntered] = useState(false);
+  const [seedPanelOpen, setSeedPanelOpen] = useState(true);
   const [copied, setCopied] = useState(false);
   const [manifestCopied, setManifestCopied] = useState(false);
   const [mode, setMode] = useState<CameraMode>('tour');
@@ -764,6 +766,14 @@ export default function Home() {
     if (nextMode !== 'fly' && document.pointerLockElement) document.exitPointerLock();
   }, []);
 
+  const enterRealm = useCallback(() => {
+    regenerate();
+    selectMode('tour');
+    setEntered(true);
+    setSeedPanelOpen(false);
+    window.setTimeout(() => mountRef.current?.focus(), 180);
+  }, [regenerate, selectMode]);
+
   const toggleTourPause = useCallback(() => {
     setTourPaused((paused) => {
       tourPausedRef.current = !paused;
@@ -789,8 +799,8 @@ export default function Home() {
   }, [randomSeed, selectMode, toggleTourPause]);
 
   return (
-    <main className="experience-shell">
-      <div ref={mountRef} className={`world-canvas ${postEnabled ? '' : 'no-post'}`} aria-label="Procedurally generated moonlit wizarding world" />
+    <main className={`experience-shell ${entered ? 'is-entered' : ''}`}>
+      <div ref={mountRef} className={`world-canvas ${postEnabled ? '' : 'no-post'}`} aria-label="Procedurally generated moonlit wizarding world" tabIndex={entered ? 0 : -1} />
       <div className="atmosphere" aria-hidden="true" />
       <div className="edge-runes" aria-hidden="true">✦　·　✧　·　✦</div>
       <header className="topbar">
@@ -799,20 +809,21 @@ export default function Home() {
           <span><strong>The Nocturne Atlas</strong><small>Procedural arcane realms</small></span>
         </a>
         <div className="top-actions">
+          {entered && <button className="perf-button" onClick={() => setSeedPanelOpen((open) => !open)} aria-expanded={seedPanelOpen}>{seedPanelOpen ? 'Close seed' : 'Seed'}</button>}
           <button className="perf-button" onClick={() => setHudOpen((open) => !open)} aria-expanded={hudOpen}>HUD</button>
           <div className={`status-pill is-${generationStatus}`}><span /> {generationStatus === 'building' ? 'Weaving world' : generationStatus === 'error' ? 'World retained' : 'World online'}</div>
         </div>
       </header>
-      <section className="hero-copy" id="world">
+      <section className="hero-copy" id="world" aria-hidden={entered}>
         <p className="eyebrow">Atlas entry · 001</p>
         <h1>A realm remembered<br />by a single word.</h1>
         <p className="intro">Every seed reveals a new gothic landscape—castles rise, forests gather, and moonlight finds the water.</p>
       </section>
-      <section className="seed-card" aria-label="World seed controls">
+      <section className={`seed-card ${entered && !seedPanelOpen ? 'is-collapsed' : ''}`} aria-label="World seed controls" aria-hidden={entered && !seedPanelOpen}>
         <label htmlFor="seed">World seed</label>
         <div className="seed-row">
-          <input id="seed" value={seed} onChange={(event) => setSeed(event.target.value.toUpperCase())} onKeyDown={(event) => event.key === 'Enter' && regenerate()} spellCheck={false} />
-          <button onClick={regenerate} aria-label="Generate world from seed">Enter realm <span>↗</span></button>
+          <input id="seed" value={seed} onChange={(event) => setSeed(event.target.value.toUpperCase())} onKeyDown={(event) => event.key === 'Enter' && (entered ? regenerate() : enterRealm())} spellCheck={false} />
+          <button type="button" onClick={entered ? regenerate : enterRealm} aria-label={entered ? 'Rebuild world from seed' : 'Enter the generated world'}>{entered ? 'Rebuild realm' : 'Enter realm'} <span>↗</span></button>
         </div>
         <div className="seed-meta"><span>Active · {activeSeed}</span><span><button onClick={randomSeed}>Randomize</button><i>·</i><button onClick={copySeed}>{copied ? 'Copied' : 'Copy seed'}</button></span></div>
         {generationError && <p className="generation-error" role="alert">The new realm failed to form. The previous world is still active.</p>}
