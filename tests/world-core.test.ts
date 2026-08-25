@@ -61,7 +61,7 @@ test('manifest validation rejects a dangling castle route', () => {
 
 test('camera landmarks are deterministic, complete, and terrain-safe', () => {
   const manifest = createWorldManifest('MAGIC-001', 'high');
-  assert.equal(manifest.generatorVersion, '2.1.0');
+  assert.equal(manifest.generatorVersion, '2.2.0');
   assert.deepEqual(manifest.cameraLandmarks.map((landmark) => landmark.id), ['castle', 'village', 'lake', 'forest', 'tower', 'mountains', 'ruins', 'station']);
   assert.equal(new Set(manifest.cameraLandmarks.map((landmark) => landmark.label)).size, 8);
   for (const landmark of manifest.cameraLandmarks) {
@@ -106,8 +106,8 @@ test('closed cinematic tour samples stay finite and above terrain', () => {
   }
 });
 
-test('seven fixed visual validation views are complete and terrain-safe', () => {
-  const expected = ['castle-hero', 'courtyard-stair', 'village-approach', 'forest-edge', 'lake-shore', 'aerial-orbit', 'great-hall'];
+test('eight fixed visual validation views are complete and terrain-safe', () => {
+  const expected = ['castle-hero', 'courtyard-stair', 'village-approach', 'forest-edge', 'lake-shore', 'aerial-orbit', 'great-hall', 'station-hall'];
   for (let seedIndex = 1; seedIndex <= 20; seedIndex += 1) {
     const manifest = createWorldManifest(`MAGIC-${String(seedIndex).padStart(3, '0')}`, 'high');
     assert.deepEqual(manifest.validationViews.map((view) => view.id), expected);
@@ -115,7 +115,7 @@ test('seven fixed visual validation views are complete and terrain-safe', () => 
       const ground = terrainHeight(view.position[0], view.position[2], manifest.seedHash);
       assert.ok(view.position.every(Number.isFinite));
       assert.ok(view.target.every(Number.isFinite));
-      assert.ok(view.position[1] >= ground + (view.id === 'great-hall' ? 1.6 : 6.8));
+      assert.ok(view.position[1] >= ground + (view.id === 'great-hall' || view.id === 'station-hall' ? 1.6 : 6.8));
     }
   }
 });
