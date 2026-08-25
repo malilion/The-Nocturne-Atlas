@@ -60,12 +60,34 @@ test('manifest validation rejects a dangling castle route', () => {
 
 test('camera landmarks are deterministic, complete, and terrain-safe', () => {
   const manifest = createWorldManifest('MAGIC-001', 'high');
+  assert.equal(manifest.generatorVersion, '1.7.0');
   assert.deepEqual(manifest.cameraLandmarks.map((landmark) => landmark.id), ['castle', 'village', 'lake', 'forest', 'tower']);
   assert.equal(new Set(manifest.cameraLandmarks.map((landmark) => landmark.label)).size, 5);
   for (const landmark of manifest.cameraLandmarks) {
     assert.ok(landmark.position.every(Number.isFinite));
     const terrain = terrainHeight(landmark.position[0], landmark.position[2], manifest.seedHash);
     assert.ok(landmark.position[1] >= terrain + 6.9);
+  }
+});
+
+test('presentation cameras preserve landmark clearance across regression seeds', () => {
+  for (let seedIndex = 1; seedIndex <= 20; seedIndex += 1) {
+    const manifest = createWorldManifest(`MAGIC-${String(seedIndex).padStart(3, '0')}`, 'medium');
+    const village = manifest.cameraLandmarks.find((landmark) => landmark.id === 'village')!;
+    const forest = manifest.cameraLandmarks.find((landmark) => landmark.id === 'forest')!;
+    const tower = manifest.cameraLandmarks.find((landmark) => landmark.id === 'tower')!;
+    const stairs = manifest.validationViews.find((view) => view.id === 'courtyard-stair')!;
+    const distanceToTarget = (view: { position: number[]; target: number[] }) => Math.hypot(
+      view.position[0] - view.target[0],
+      view.position[1] - view.target[1],
+      view.position[2] - view.target[2],
+    );
+
+    assert.ok(Math.abs(village.position[2] - 13) <= 3.1);
+    assert.ok(village.position[1] >= 21);
+    assert.ok(forest.position[1] >= 25);
+    assert.ok(distanceToTarget(tower) >= 35);
+    assert.ok(distanceToTarget(stairs) >= 42);
   }
 });
 
