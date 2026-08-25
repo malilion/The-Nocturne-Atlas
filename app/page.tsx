@@ -15,6 +15,7 @@ import { CameraManager, type CameraMode, type FixedView, type LandmarkId } from 
 import { EnvironmentSystem, type TimeOfDay } from './environment-system';
 import { createGreatHallArchitecture } from './great-hall';
 import { runIncrementally, runSynchronously } from './incremental-builder';
+import { NpcBehaviorSystem } from './npc-behavior';
 import { createCastleDetailProfile, createForestTreeDetailProfile, createVillageDetailProfile } from './procedural-details';
 import { createGlassMaterial, createMetalMaterial, createRoofMaterial, createStoneMaterial, createTerrainMaterial, createWoodMaterial } from './procedural-materials';
 import { RebuildCoordinator } from './rebuild-coordinator';
@@ -911,6 +912,7 @@ export default function Home() {
     streamingSystem.setEnabled(streamingEnabledRef.current);
     streamingSystemRef.current = streamingSystem;
     let streamingStatus = streamingSystem.status;
+    const npcBehavior = new NpcBehaviorSystem(world.root, world.manifest.seed);
     let lastGenerationMs = performance.now() - initialGenerationStarted;
     let lastDisposal = { geometries: 0, materials: 0 };
     scene.add(world.root);
@@ -997,6 +999,7 @@ export default function Home() {
           cameraManager.setManifest(world.manifest);
           audioSystem.setSeed(world.manifest.seedHash);
           streamingSystem.setWorld(world.root, world.manifest, rebuildTicket.payload.quality);
+          npcBehavior.setWorld(world.root, world.manifest.seed);
           scene.remove(previousWorld.root);
           lastDisposal = disposeObject(previousWorld.root);
           renderer.setPixelRatio(Math.min(window.devicePixelRatio, renderScale()));
@@ -1098,6 +1101,7 @@ export default function Home() {
       world.movingLanternRoot.position.y = Math.sin(animationTime * 0.48) * 0.34;
       world.stationClockHands.rotation.z = -animationTime * 0.08;
       world.railcarRoot.position.x = Number(world.railcarRoot.userData.baseX) + Math.sin(animationTime * 0.12) * 5.5;
+      npcBehavior.update(animationTime, reducedMotionRef.current);
 
       const requestedScene = sceneRequestRef.current;
       if (requestedScene) sceneRequestRef.current = null;
@@ -1189,6 +1193,7 @@ export default function Home() {
       audioSystemRef.current = null;
       streamingSystem.dispose();
       streamingSystemRef.current = null;
+      npcBehavior.dispose();
       environment.dispose();
       scene.clear();
       composer.dispose();
