@@ -11,13 +11,38 @@ export interface WorldCounts {
   shoreRocks: number;
 }
 
+export interface CastleGraphNode {
+  id: string;
+  type: 'tower' | 'hall' | 'courtyard' | 'gate';
+  position: [number, number, number];
+  radius: number;
+  height: number;
+}
+
+export interface CastleGraphEdge {
+  id: string;
+  from: string;
+  to: string;
+  type: 'corridor' | 'bridge' | 'moving-stair';
+}
+
+export interface WorldValidationReport {
+  ok: boolean;
+  errors: string[];
+  warnings: string[];
+}
+
 export interface WorldManifest {
   seed: string;
   seedHash: number;
-  generatorVersion: '1.1.0';
+  generatorVersion: '1.2.0';
   manifestHash: string;
   quality: QualityTier;
   towerHeights: number[];
+  castleGraph: {
+    nodes: CastleGraphNode[];
+    edges: CastleGraphEdge[];
+  };
   counts: WorldCounts;
   cameraLandmarks: Array<{
     id: 'castle' | 'village' | 'lake' | 'forest' | 'tower';
@@ -93,12 +118,33 @@ export function createWorldManifest(seedText: string, quality: QualityTier): Wor
       Number(landmark.position[2].toFixed(3)),
     ],
   })) as WorldManifest['cameraLandmarks'];
+  const towerHeights = [18 + castle() * 4, 23 + castle() * 5, 16 + castle() * 4, 14 + castle() * 5].map((height) => Number(height.toFixed(3)));
+  const castleGraph: WorldManifest['castleGraph'] = {
+    nodes: [
+      { id: 'astral-spire', type: 'tower', position: [-9, 0, -3], radius: 3.6, height: towerHeights[0] },
+      { id: 'moon-tower', type: 'tower', position: [7, 0, -5], radius: 3, height: towerHeights[1] },
+      { id: 'archive-tower', type: 'tower', position: [2, 0, 8], radius: 4, height: towerHeights[2] },
+      { id: 'owlery', type: 'tower', position: [-12, 0, 8], radius: 2.7, height: towerHeights[3] },
+      { id: 'great-hall', type: 'hall', position: [-1, 0, 0], radius: 8.5, height: 9 },
+      { id: 'inner-court', type: 'courtyard', position: [-3, 0, 7], radius: 5.5, height: 0 },
+      { id: 'south-gate', type: 'gate', position: [0, 0, 13], radius: 3.2, height: 6 },
+    ],
+    edges: [
+      { id: 'hall-astral', from: 'great-hall', to: 'astral-spire', type: 'corridor' },
+      { id: 'hall-moon', from: 'great-hall', to: 'moon-tower', type: 'moving-stair' },
+      { id: 'hall-court', from: 'great-hall', to: 'inner-court', type: 'corridor' },
+      { id: 'court-archive', from: 'inner-court', to: 'archive-tower', type: 'bridge' },
+      { id: 'court-owlery', from: 'inner-court', to: 'owlery', type: 'bridge' },
+      { id: 'court-gate', from: 'inner-court', to: 'south-gate', type: 'corridor' },
+    ],
+  };
   const base = {
     seed,
     seedHash,
-    generatorVersion: '1.1.0' as const,
+    generatorVersion: '1.2.0' as const,
     quality,
-    towerHeights: [18 + castle() * 4, 23 + castle() * 5, 16 + castle() * 4, 14 + castle() * 5].map((height) => Number(height.toFixed(3))),
+    towerHeights,
+    castleGraph,
     counts: { ...QUALITY_COUNTS[quality] },
     cameraLandmarks,
     zones: [
@@ -109,4 +155,64 @@ export function createWorldManifest(seedText: string, quality: QualityTier): Wor
     ],
   };
   return { ...base, manifestHash: digestManifest(base) };
+}
+
+export function validateWorldManifest(manifest: WorldManifest): WorldValidationReport {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  const nodeIds = new Set<string>();
+  for (const node of manifest.castleGraph.nodes) {
+    if (nodeIds.has(node.id)) errors.push(`Duplicate castle node: ${node.id}`);
+    nodeIds.add(node.id);
+    if (![...node.position, node.radius, node.height].every(Number.isFinite)) errors.push(`Non-finite castle node: ${node.id}`);
+    if (node.radius <= 0) errors.push(`Castle node has no footprint: ${node.id}`);
+  }
+
+  const adjacency = new Map([...nodeIds].map((id) => [id, new Set<string>()]));
+  const edgeIds = new Set<string>();
+  for (const edge of manifest.castleGraph.edges) {
+    if (edgeIds.has(edge.id)) errors.push(`Duplicate castle edge: ${edge.id}`);
+    edgeIds.add(edge.id);
+    if (!nodeIds.has(edge.from) || !nodeIds.has(edge.to)) {
+      errors.push(`Castle edge ${edge.id} references a missing node.`);
+      continue;
+    }
+    adjacency.get(edge.from)?.add(edge.to);
+    adjacency.get(edge.to)?.add(edge.from);
+  }
+
+  const firstNode = manifest.castleGraph.nodes[0]?.id;
+  const visited = new Set<string>();
+  if (firstNode) {
+    const pending = [firstNode];
+    while (pending.length) {
+      const current = pending.pop()!;
+      if (visited.has(current)) continue;
+      visited.add(current);
+      adjacency.get(current)?.forEach((neighbor) => pending.push(neighbor));
+    }
+  }
+  if (visited.size !== nodeIds.size) errors.push(`Castle graph is disconnected (${visited.size}/${nodeIds.size} nodes reachable).`);
+
+  const towerCount = manifest.castleGraph.nodes.filter((node) => node.type === 'tower').length;
+  if (towerCount !== manifest.counts.towers) errors.push(`Castle tower count mismatch (${towerCount}/${manifest.counts.towers}).`);
+  if (!manifest.castleGraph.edges.some((edge) => edge.type === 'moving-stair')) warnings.push('Castle graph has no moving staircase route.');
+
+  const zoneIds = new Set<string>();
+  for (const zone of manifest.zones) {
+    if (zoneIds.has(zone.id)) errors.push(`Duplicate world zone: ${zone.id}`);
+    zoneIds.add(zone.id);
+    if (![...zone.center, zone.radius].every(Number.isFinite) || zone.radius <= 0) errors.push(`Invalid world zone: ${zone.id}`);
+  }
+  if (!manifest.zones.some((zone) => zone.type === 'lake')) errors.push('World has no lake boundary.');
+
+  for (const landmark of manifest.cameraLandmarks) {
+    if (![...landmark.position, ...landmark.target].every(Number.isFinite)) errors.push(`Invalid camera landmark: ${landmark.id}`);
+    const ground = terrainHeight(landmark.position[0], landmark.position[2], manifest.seedHash);
+    if (landmark.position[1] < ground + 6.8) errors.push(`Camera landmark intersects terrain: ${landmark.id}`);
+  }
+  for (const [name, count] of Object.entries(manifest.counts)) {
+    if (!Number.isInteger(count) || count <= 0) errors.push(`Invalid ${name} count: ${count}`);
+  }
+  return { ok: errors.length === 0, errors, warnings };
 }
