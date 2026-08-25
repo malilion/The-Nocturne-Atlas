@@ -9,6 +9,7 @@ An original, seed-driven 3D wizarding world built with Three.js and TypeScript. 
 - `O` — orbit; drag to rotate and scroll to zoom
 - `R` — generate a new seed
 - `Esc` — release the pointer in free-fly mode
+- `Space` — pause or resume the cinematic tour
 
 The seed panel accepts any text. Re-entering the same seed recreates the same world. The HUD shows live frame rate, draw calls, and triangle count.
 
@@ -32,5 +33,7 @@ The experience uses direct Three.js scene, camera, renderer, geometry, shader, i
 Terrain, castle stone, slate roofs, tree trunks, and village timber use seed-aware world-space procedural materials. Animated arcane wisps run entirely in a GPU point shader with per-point phases; no image textures or per-particle CPU updates are required.
 
 World regeneration uses an atomic swap: a new world is constructed and validated before replacing the active root. If generation fails, the existing world remains visible and usable.
+
+The cinematic camera follows seed-aware Catmull–Rom position and look-target curves through five terrain-safe landmarks: castle, village, lake, forest, and tower detail. Returning from Free Fly or Orbit uses a smooth handoff from the current view. A reduced-motion option slows the tour and lengthens the handoff.
 
 This is a polished Phase 1 vertical slice. Collision, interiors, NPCs, quests, audio, and world streaming are intentionally outside its scope.

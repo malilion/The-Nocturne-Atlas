@@ -71,6 +71,8 @@ button { color: inherit; }
 .scene-footer strong, .scene-footer small { display: block; }
 .scene-footer strong { font-family: Georgia, serif; font-size: 12px; font-weight: 500; }
 .scene-footer small { margin-top: 4px; color: #7f8784; font-size: 8px; letter-spacing: .12em; text-transform: uppercase; }
+.tour-pause { height: 25px; margin-left: 7px; border: 1px solid rgba(236,232,220,.14); border-radius: 999px; padding: 0 9px; background: rgba(236,232,220,.04); color: #868e8a; cursor: pointer; font-size: 7px; letter-spacing: .1em; text-transform: uppercase; }
+.tour-pause:hover { background: rgba(236,232,220,.09); color: #c8ceca; }
 .camera-modes { justify-self: center; display: flex; align-items: center; gap: 3px; border: 1px solid rgba(236,232,220,.13); border-radius: 999px; padding: 3px; background: rgba(0,0,0,.18); }
 .camera-modes button { height: 29px; border: 0; border-radius: 999px; padding: 0 12px; background: transparent; color: #747d79; cursor: pointer; font-size: 8px; letter-spacing: .08em; text-transform: uppercase; transition: color .2s, background .2s; }
 .camera-modes button.active { background: rgba(236,232,220,.11); color: #d8ddd8; }

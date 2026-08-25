@@ -40,6 +40,17 @@ test('twenty regression seeds create finite terrain and valid manifests', () => 
   }
 });
 
+test('camera landmarks are deterministic, complete, and terrain-safe', () => {
+  const manifest = createWorldManifest('MAGIC-001', 'high');
+  assert.deepEqual(manifest.cameraLandmarks.map((landmark) => landmark.id), ['castle', 'village', 'lake', 'forest', 'tower']);
+  assert.equal(new Set(manifest.cameraLandmarks.map((landmark) => landmark.label)).size, 5);
+  for (const landmark of manifest.cameraLandmarks) {
+    assert.ok(landmark.position.every(Number.isFinite));
+    const terrain = terrainHeight(landmark.position[0], landmark.position[2], manifest.seedHash);
+    assert.ok(landmark.position[1] >= terrain + 6.9);
+  }
+});
+
 test('generation source never calls Math.random', async () => {
   const source = await readFile(new URL('../app/page.tsx', import.meta.url), 'utf8');
   assert.equal(source.includes('Math.random('), false);
