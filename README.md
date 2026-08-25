@@ -15,9 +15,9 @@ An original, seed-driven 3D wizarding world built with Three.js and TypeScript. 
 
 The seed panel accepts any text. Re-entering the same seed recreates the same world. The HUD shows live frame and frame time, draw calls, triangles, points/lines, GPU geometry/texture ownership, generation time, optional browser JS heap data, and the resources released by the last rebuild.
 
-`Enter realm` starts the immersive experience and collapses the landing copy and seed panel. After entering, use the `Seed` control in the top bar to reopen the panel; its primary action then becomes `Rebuild realm`.
+`Enter realm` starts the immersive experience and collapses the landing copy and seed panel. The camera remains parked on the castle instead of automatically rotating; use `Resume` or `Space` to start the cinematic tour. After entering, use the `Seed` control in the top bar to reopen the panel; its primary action then becomes `Rebuild realm`.
 
-After entering, the landmark switcher above the footer provides direct scene buttons for the castle, village, lake, forest, and tower. The Day/Night control in the top bar transitions the complete environment lighting model, including sky, fog, stars, celestial light, water highlights, and exposure.
+After entering, the landmark switcher above the footer provides direct scene buttons for the castle, village, lake, forest, and tower. Each scene transition stops at its destination until the tour is explicitly resumed. The Day/Night control in the top bar transitions the complete environment lighting model, including sky, fog, stars, celestial light, water highlights, and exposure.
 
 The HUD also exposes real Low, Medium, and High quality tiers, atmospheric fog, HDR Bloom/cinematic grading, optional SSAO on Medium/High, dynamic shadows, zone-boundary diagnostics, a unified ambient-animation switch, and the deterministic world manifest. Fog density, Bloom strength, and water motion are adjustable live. Quality tiers change render scale, Bloom strength, and instance density rather than acting as labels only; High supports 1,100 instanced trees. The `20× rebuild audit` repeatedly performs atomic swaps and reports the live GPU geometry delta; a clean result allows a one-geometry tolerance for Three.js renderer housekeeping.
 
