@@ -492,7 +492,7 @@ export default function Home() {
   const fogDensityRef = useRef(1);
   const bloomStrengthRef = useRef(1);
   const zoneDebugRef = useRef(false);
-  const tourPausedRef = useRef(false);
+  const tourPausedRef = useRef(true);
   const reducedMotionRef = useRef(false);
   const waterMotionRef = useRef(1);
   const ambientPausedRef = useRef(false);
@@ -515,7 +515,7 @@ export default function Home() {
   const [zoneDebugEnabled, setZoneDebugEnabled] = useState(false);
   const [manifest, setManifest] = useState<WorldManifest>(() => createWorldManifest(DEFAULT_SEED, 'medium'));
   const [tourLocation, setTourLocation] = useState<WorldManifest['cameraLandmarks'][number]>(() => createWorldManifest(DEFAULT_SEED, 'medium').cameraLandmarks[0]);
-  const [tourPaused, setTourPaused] = useState(false);
+  const [tourPaused, setTourPaused] = useState(true);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [waterMotion, setWaterMotion] = useState(1);
   const [ambientPaused, setAmbientPaused] = useState(false);
@@ -1002,8 +1002,8 @@ export default function Home() {
     const landmark = manifest.cameraLandmarks.find((item) => item.id === sceneId);
     if (!landmark) return;
     sceneRequestRef.current = sceneId;
-    tourPausedRef.current = false;
-    setTourPaused(false);
+    tourPausedRef.current = true;
+    setTourPaused(true);
     setTourLocation(landmark);
     selectMode('tour');
   }, [manifest, selectMode]);
@@ -1019,6 +1019,8 @@ export default function Home() {
   const enterRealm = useCallback(() => {
     regenerate();
     selectMode('tour');
+    tourPausedRef.current = true;
+    setTourPaused(true);
     setEntered(true);
     setSeedPanelOpen(false);
     window.setTimeout(() => mountRef.current?.focus(), 180);
