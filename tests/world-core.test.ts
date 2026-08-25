@@ -93,6 +93,16 @@ test('lake ecology scales by quality while preserving one shared boundary', () =
   assert.equal(low.zones.find((zone) => zone.type === 'lake')?.radius, 26);
 });
 
+test('forest LOD policy is deterministic, complete, and quality-aware', () => {
+  const medium = createWorldManifest('MAGIC-001', 'medium');
+  const high = createWorldManifest('MAGIC-001', 'high');
+  assert.equal(medium.forestLod.nearTrees + medium.forestLod.farTrees, medium.counts.trees);
+  assert.equal(high.forestLod.nearTrees + high.forestLod.farTrees, high.counts.trees);
+  assert.ok(high.forestLod.nearTrees > medium.forestLod.nearTrees);
+  assert.ok(high.forestLod.farTrees > medium.forestLod.farTrees);
+  assert.ok(high.forestLod.splitRadius > medium.forestLod.splitRadius);
+});
+
 test('generation source never calls Math.random', async () => {
   const source = await readFile(new URL('../app/page.tsx', import.meta.url), 'utf8');
   assert.equal(source.includes('Math.random('), false);
