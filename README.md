@@ -32,6 +32,8 @@ The experience uses direct Three.js scene, camera, renderer, geometry, shader, i
 
 Terrain, castle stone, slate roofs, tree trunks, and village timber use seed-aware world-space procedural materials. Animated arcane wisps run entirely in a GPU point shader with per-point phases; no image textures or per-particle CPU updates are required.
 
+The lake, shoreline rocks, reeds, and island share a single deterministic boundary. The water shader includes analytic waves, depth-to-shore color, Fresnel response, moon highlights, and a restrained shoreline foam band. Water motion is adjustable live from the HUD, while shore ecology density follows the selected quality tier.
+
 World regeneration uses an atomic swap: a new world is constructed and validated before replacing the active root. If generation fails, the existing world remains visible and usable.
 
 The cinematic camera follows seed-aware Catmull–Rom position and look-target curves through five terrain-safe landmarks: castle, village, lake, forest, and tower detail. Returning from Free Fly or Orbit uses a smooth handoff from the current view. A reduced-motion option slows the tour and lengthens the handoff.

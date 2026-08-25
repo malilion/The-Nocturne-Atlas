@@ -7,6 +7,8 @@ export interface WorldCounts {
   fireflies: number;
   candles: number;
   wisps: number;
+  reeds: number;
+  shoreRocks: number;
 }
 
 export interface WorldManifest {
@@ -28,9 +30,9 @@ export interface WorldManifest {
 }
 
 export const QUALITY_COUNTS: Record<QualityTier, WorldCounts> = {
-  low: { towers: 4, houses: 12, trees: 150, fireflies: 40, candles: 60, wisps: 28 },
-  medium: { towers: 4, houses: 16, trees: 260, fireflies: 90, candles: 120, wisps: 60 },
-  high: { towers: 4, houses: 22, trees: 520, fireflies: 160, candles: 240, wisps: 110 },
+  low: { towers: 4, houses: 12, trees: 150, fireflies: 40, candles: 60, wisps: 28, reeds: 80, shoreRocks: 34 },
+  medium: { towers: 4, houses: 16, trees: 260, fireflies: 90, candles: 120, wisps: 60, reeds: 150, shoreRocks: 58 },
+  high: { towers: 4, houses: 22, trees: 520, fireflies: 160, candles: 240, wisps: 110, reeds: 260, shoreRocks: 92 },
 };
 
 export function hashSeed(value: string) {
