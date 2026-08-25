@@ -8,9 +8,9 @@ An original, seed-driven 3D wizarding world built with Three.js and TypeScript.
 
 ## Scene Gallery / 場景圖庫
 
-Captured from the deterministic `MAGIC-001` world with generator `1.7.0`, Medium quality, and night mode. Every image is an actual scene-switch destination with the tour paused after arrival.
+Captured from the deterministic `MAGIC-001` world with generator `1.7.0`, Medium quality, and night mode. Every image is an actual scene-switch destination with the tour paused after arrival. Generator `1.8.0` preserves these camera destinations and adds the seeded castle, village, and forest geometry described below.
 
-以下畫面擷取自固定種子 `MAGIC-001`、生成器 `1.7.0`、中等畫質與夜間模式。每張圖片都是實際可切換的場景目的地，抵達後導覽會保持暫停。
+以下畫面擷取自固定種子 `MAGIC-001`、生成器 `1.7.0`、中等畫質與夜間模式。每張圖片都是實際可切換的場景目的地，抵達後導覽會保持暫停。生成器 `1.8.0` 保留相同鏡頭目的地，並加入下方說明的城堡、村莊與森林種子化幾何細節。
 
 | 1 · Castle of Veyra / 維拉城堡 | 2 · Lumen Row / 流明街村莊 |
 | --- | --- |
@@ -71,15 +71,17 @@ Create a production build with `npm run build`. Run the deterministic regression
 - Seven fixed destinations were browser-checked and captured from the current generator.
 - Village, Forest, Tower, and Moving Stair cameras satisfy presentation-clearance contracts across twenty regression seeds.
 - Day/night transition, automatic orbit, mouse drag, and wheel zoom were exercised in the local WebGL experience. Touch input shares the tested orbit constraints and adds one-finger drag plus two-finger pinch.
-- All 25 deterministic, lifecycle, shader, environment, camera, and presentation tests pass. Coverage includes night fill ownership, exposure, fog density, daylight transition, shadow toggles, landmark-relative orbit focus, drag-paused automatic rotation, and idempotent cleanup.
+- All 26 deterministic, lifecycle, shader, environment, camera, and presentation tests pass. Coverage includes seeded detail profiles, night fill ownership, exposure, fog density, daylight transition, shadow toggles, landmark-relative orbit focus, drag-paused automatic rotation, and idempotent cleanup.
 - Production build and lint complete without errors. The build currently reports a non-blocking warning for the Three.js client chunk exceeding 500 kB after minification.
-- A sampled Medium-quality view reports 146 draw calls, 55k triangles, and 70 geometries, within the Phase 1 draw-call budget. Final 1080p FPS qualification remains hardware-dependent.
+- The generator `1.7.0` baseline Medium-quality sample reported 146 draw calls, 55k triangles, and 70 geometries, within the Phase 1 draw-call budget. The `1.8.0` village detail pass replaces per-building windows with shared instances to offset its new geometry; a fresh hardware sample remains recommended. Final 1080p FPS qualification is hardware-dependent.
 
 ### Implementation notes
 
 The experience uses direct Three.js scene, camera, renderer, geometry, shader, instancing, and GPU lifecycle management. Dedicated camera and environment systems own input listeners, tour/fly/orbit transitions, day/night lighting, sky, fog, stars, celestial objects, water highlights, exposure, bloom, and shadow state through explicit update and disposal lifecycles.
 
 Terrain, castle stone, slate roofs, tree trunks, and village timber use seed-aware world-space procedural materials. Animated arcane wisps run entirely in a GPU point shader. The lake, shoreline rocks, reeds, and island share one deterministic boundary; its shader provides analytic waves, depth-to-shore color, Fresnel response, celestial highlights, and shoreline foam.
+
+Generator `1.8.0` adds a rendered gatehouse with an arched portal, instanced castle buttresses and battlements, seeded village chimneys, framed windows and hanging signs, plus leaning trunks and two-tier near-tree canopies. Detail profiles use isolated seed namespaces so silhouette changes do not cascade into unrelated systems. Village windows and trim are instanced in shared batches to keep added draw-call cost bounded.
 
 Regeneration uses an atomic swap: a new world is constructed and validated before it replaces the active root. Shared resources are deduplicated through an idempotent registry before disposal. Failed generation leaves the existing world visible, while WebGL context restoration triggers a validated rebuild. The `20× rebuild audit` tracks GPU geometry and browser heap samples when heap telemetry is available.
 
@@ -134,15 +136,17 @@ npm run dev
 - 七個固定場景目的地皆已在目前的生成器中實際檢查並截圖。
 - 村莊、森林、高塔與移動階梯鏡頭，在二十組回歸種子中皆符合取景淨空規則。
 - 日夜切換、自動環繞、滑鼠拖曳與滾輪縮放已在本機 WebGL 場景操作驗證。觸控操作沿用相同環繞限制，並加入單指拖曳與雙指縮放。
-- 25 項固定性、生命週期、Shader、環境、鏡頭與場景呈現測試全數通過。涵蓋夜間補光管理、曝光、霧密度、日夜轉換、陰影切換、地標中心環繞、拖曳暫停自轉與重複清理安全性。
+- 26 項固定性、生命週期、Shader、環境、鏡頭與場景呈現測試全數通過。涵蓋種子化細節設定、夜間補光管理、曝光、霧密度、日夜轉換、陰影切換、地標中心環繞、拖曳暫停自轉與重複清理安全性。
 - 正式建置與 Lint 均無錯誤。目前僅有 Three.js 用戶端區塊壓縮後超過 500 kB 的非阻擋警告。
-- 中等畫質抽樣畫面為 146 Draw Calls、55k 三角形與 70 個 Geometry，符合 Phase 1 的 Draw Call 預算。最終 1080p FPS 仍需在目標硬體上確認。
+- 生成器 `1.7.0` 的中等畫質基準抽樣為 146 Draw Calls、55k 三角形與 70 個 Geometry，符合 Phase 1 的 Draw Call 預算。`1.8.0` 村莊細節更新以共用 Instancing 取代逐棟窗戶，抵銷新增幾何成本；仍建議在目標硬體上重新取樣。最終 1080p FPS 需依實際硬體確認。
 
 ### 實作說明
 
 本體直接使用 Three.js 管理場景、鏡頭、Renderer、幾何、Shader、Instancing 與 GPU 資源生命週期。獨立的鏡頭與環境系統透過明確的更新及清理流程，管理輸入事件、導覽／自由飛行／環繞切換、日夜照明、天空、霧、星光、天體、水面高光、曝光、Bloom 與陰影狀態。
 
 地形、城堡石材、石板屋頂、樹幹與村莊木材均使用與種子相關的世界座標程序材質。魔法光點完全在 GPU Point Shader 中運作。湖泊、水岸岩石、蘆葦與島嶼共用同一條固定邊界；水面 Shader 提供解析波浪、深淺水色、Fresnel 反射、天體高光與岸邊泡沫。
+
+生成器 `1.8.0` 新增具有拱門入口的城門建築、實例化城堡扶壁與垛口、種子化村莊煙囪、窗框與懸掛招牌，以及傾斜樹幹和近景雙層樹冠。細節設定使用隔離的種子命名空間，輪廓變化不會連帶改變其他系統。村莊窗戶與飾條以共用 Instancing 批次繪製，使新增細節的 Draw Call 成本維持受控。
 
 世界重建採用原子交換：新世界完成建立與驗證後才取代目前場景。共用資源由可重複安全清理的 Registry 去重並釋放。生成失敗時舊世界仍可使用；WebGL Context 恢復後則會觸發已驗證的重建流程。`20× rebuild audit` 會記錄 GPU Geometry，以及瀏覽器提供 Heap Telemetry 時的記憶體樣本。
 

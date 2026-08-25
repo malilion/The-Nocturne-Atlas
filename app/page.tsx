@@ -9,6 +9,7 @@ import { SSAOPass } from 'three/addons/postprocessing/SSAOPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { CameraManager, type CameraMode, type FixedView, type LandmarkId } from './camera-manager';
 import { EnvironmentSystem, type TimeOfDay } from './environment-system';
+import { createCastleDetailProfile, createForestTreeDetailProfile, createVillageDetailProfile } from './procedural-details';
 import { createRoofMaterial, createStoneMaterial, createTerrainMaterial, createWoodMaterial } from './procedural-materials';
 import { ResourceRegistry } from './resource-registry';
 import { createWorldManifest, hashSeed, mulberry32, terrainHeight, validateWorldManifest, type QualityTier, type WorldManifest } from './world-core';
@@ -103,6 +104,7 @@ function createWorld(seedText: string, quality: QualityTier) {
 
   const stone = createStoneMaterial(seed);
   const roof = createRoofMaterial(seed);
+  const castleDetails = createCastleDetailProfile(manifest.seed);
   const windowMaterial = new THREE.MeshBasicMaterial({ color: new THREE.Color().setRGB(3.2, 1.2, 0.28), toneMapped: false });
   const castle = new THREE.Group();
   castle.position.set(-7, terrainHeight(-7, -4, seed) + 0.2, -4);
@@ -161,6 +163,76 @@ function createWorld(seedText: string, quality: QualityTier) {
   bridge.rotation.z = -0.18;
   bridge.castShadow = true;
   castle.add(bridge);
+
+  const detailMatrix = new THREE.Matrix4();
+  const detailQuaternion = new THREE.Quaternion();
+  const detailScale = new THREE.Vector3();
+  const buttressPlacements: Array<[number, number, number]> = [];
+  for (const x of [-8.2, -3.4, 1.4, 6.2]) {
+    buttressPlacements.push([x, 4, -5.45], [x, 4, 5.45]);
+  }
+  buttressPlacements.push([-2.85, 3, 13], [2.85, 3, 13]);
+  const buttresses = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), stone, buttressPlacements.length);
+  buttressPlacements.forEach(([x, y, z], index) => {
+    detailScale.set(0.72, y * 2, castleDetails.buttressDepth);
+    detailMatrix.compose(new THREE.Vector3(x, y, z), detailQuaternion, detailScale);
+    buttresses.setMatrixAt(index, detailMatrix);
+  });
+  buttresses.name = 'castle-seed-buttresses';
+  buttresses.castShadow = true;
+  buttresses.receiveShadow = true;
+  castle.add(buttresses);
+
+  const gateNode = manifest.castleGraph.nodes.find((node) => node.type === 'gate');
+  if (gateNode) {
+    const [gateX, , gateZ] = gateNode.position;
+    const gatehouse = new THREE.Mesh(new THREE.BoxGeometry(7, gateNode.height, 3), stone);
+    gatehouse.position.set(gateX, gateNode.height / 2, gateZ);
+    gatehouse.castShadow = true;
+    gatehouse.receiveShadow = true;
+    castle.add(gatehouse);
+
+    const gateRoof = new THREE.Mesh(new THREE.BoxGeometry(7.7, 0.65, 3.7), stone);
+    gateRoof.position.set(gateX, gateNode.height + 0.2, gateZ);
+    gateRoof.castShadow = true;
+    castle.add(gateRoof);
+
+    const portalShape = new THREE.Shape();
+    const archWidth = 1.25 * castleDetails.gateArchScale;
+    portalShape.moveTo(-archWidth, 0);
+    portalShape.lineTo(-archWidth, 1.65);
+    portalShape.quadraticCurveTo(-archWidth, 3.25, 0, 3.5);
+    portalShape.quadraticCurveTo(archWidth, 3.25, archWidth, 1.65);
+    portalShape.lineTo(archWidth, 0);
+    portalShape.closePath();
+    const portal = new THREE.Mesh(
+      new THREE.ShapeGeometry(portalShape),
+      new THREE.MeshBasicMaterial({ color: 0x07080a, toneMapped: false }),
+    );
+    portal.position.set(gateX, 0.04, gateZ + 1.51);
+    castle.add(portal);
+
+    const arch = new THREE.Mesh(new THREE.TorusGeometry(archWidth, 0.24, 6, 18, Math.PI), stone);
+    arch.position.set(gateX, 1.72, gateZ + 1.57);
+    arch.castShadow = true;
+    castle.add(arch);
+  }
+
+  const battlementPlacements: Array<[number, number, number]> = [];
+  for (let x = -8.3; x <= 6.3; x += 2.4) {
+    battlementPlacements.push([x, 9.6, -5.25], [x, 9.6, 5.25]);
+  }
+  for (let x = -2.7; x <= 2.7; x += 1.35) battlementPlacements.push([x, 7, 13]);
+  const battlementGeometry = new THREE.BoxGeometry(0.9, 1.15, 0.9);
+  const battlements = new THREE.InstancedMesh(battlementGeometry, stone, battlementPlacements.length);
+  battlementPlacements.forEach(([x, y, z], index) => {
+    detailScale.set(castleDetails.battlementScale, 1, castleDetails.battlementScale);
+    detailMatrix.compose(new THREE.Vector3(x, y, z), detailQuaternion, detailScale);
+    battlements.setMatrixAt(index, detailMatrix);
+  });
+  battlements.name = 'castle-seed-battlements';
+  battlements.castShadow = true;
+  castle.add(battlements);
 
   const waterMaterial = new THREE.ShaderMaterial({
     transparent: true,
@@ -261,6 +333,7 @@ function createWorld(seedText: string, quality: QualityTier) {
   const farCanopyGeometry = new THREE.ConeGeometry(1.5, 5.2, 4);
   const canopyMaterial = new THREE.MeshStandardMaterial({ color: 0x111c18, roughness: 0.94 });
   const nearCanopies = new THREE.InstancedMesh(nearCanopyGeometry, canopyMaterial, manifest.forestLod.nearTrees);
+  const nearUpperCanopies = new THREE.InstancedMesh(nearCanopyGeometry, canopyMaterial, manifest.forestLod.nearTrees);
   const farCanopies = new THREE.InstancedMesh(farCanopyGeometry, canopyMaterial, manifest.forestLod.farTrees);
   const matrix = new THREE.Matrix4();
   const quaternion = new THREE.Quaternion();
@@ -293,31 +366,48 @@ function createWorld(seedText: string, quality: QualityTier) {
     }
     const y = terrainHeight(x, z, seed);
     const treeScale = 0.7 + random() * 1.25;
-    quaternion.setFromAxisAngle(treeUp, random() * Math.PI * 2);
-    position.set(x, y + (3.5 * treeScale) / 2, z);
-    scale.set(treeScale, treeScale, treeScale);
+    const treeDetails = createForestTreeDetailProfile(manifest.seed, i);
+    const treeYaw = random() * Math.PI * 2;
+    const trunkHeight = 3.5 * treeScale * treeDetails.heightScale;
+    quaternion.setFromEuler(new THREE.Euler(treeDetails.leanX, treeYaw, treeDetails.leanZ, 'YXZ'));
+    position.set(x, y + trunkHeight / 2, z);
+    scale.set(treeScale * treeDetails.trunkWidth, treeScale * treeDetails.heightScale, treeScale * treeDetails.trunkWidth);
     matrix.compose(position, quaternion, scale);
     const trunkBatch = isNearTree ? nearTrunks : farTrunks;
     const canopyBatch = isNearTree ? nearCanopies : farCanopies;
     const batchIndex = isNearTree ? nearTreeIndex : farTreeIndex;
     trunkBatch.setMatrixAt(batchIndex, matrix);
-    position.y = y + 3.5 * treeScale + 2.2 * treeScale;
+    position.y = y + trunkHeight + 2.15 * treeScale * treeDetails.heightScale;
+    scale.set(treeScale * treeDetails.canopyWidth, treeScale * treeDetails.heightScale, treeScale * treeDetails.canopyWidth);
     matrix.compose(position, quaternion, scale);
     canopyBatch.setMatrixAt(batchIndex, matrix);
+    if (isNearTree) {
+      quaternion.setFromAxisAngle(treeUp, treeDetails.canopyTwist);
+      position.y = y + trunkHeight + 4.5 * treeScale * treeDetails.heightScale;
+      scale.set(
+        treeScale * treeDetails.canopyWidth * treeDetails.upperCanopyScale,
+        treeScale * treeDetails.upperCanopyScale,
+        treeScale * treeDetails.canopyWidth * treeDetails.upperCanopyScale,
+      );
+      matrix.compose(position, quaternion, scale);
+      nearUpperCanopies.setMatrixAt(batchIndex, matrix);
+    }
     if (isNearTree) nearTreeIndex += 1;
     else farTreeIndex += 1;
   }
-  const treeBatches = [nearTrunks, nearCanopies, farTrunks, farCanopies];
+  const treeBatches = [nearTrunks, nearCanopies, nearUpperCanopies, farTrunks, farCanopies];
   treeBatches.forEach((batch) => {
     batch.instanceMatrix.needsUpdate = true;
     batch.computeBoundingSphere();
   });
   nearTrunks.castShadow = quality !== 'low';
   nearCanopies.castShadow = quality !== 'low';
+  nearUpperCanopies.castShadow = quality !== 'low';
   farTrunks.castShadow = false;
   farCanopies.castShadow = false;
   nearTrunks.name = 'forest-near-trunks';
   nearCanopies.name = 'forest-near-canopies';
+  nearUpperCanopies.name = 'forest-near-upper-canopies';
   farTrunks.name = 'forest-far-trunks';
   farCanopies.name = 'forest-far-canopies';
   root.add(...treeBatches);
@@ -391,6 +481,20 @@ function createWorld(seedText: string, quality: QualityTier) {
   const plaster = new THREE.MeshStandardMaterial({ color: 0x544b43, roughness: 0.9 });
   const timber = createWoodMaterial(hashSeed(`${manifest.seed}::village/wood`));
   const villageRoof = new THREE.ConeGeometry(1, 1, 4);
+  const villageDetails = manifest.villageBuildings.map((_, index) => createVillageDetailProfile(manifest.seed, index));
+  const villageWindowGeometry = new THREE.PlaneGeometry(0.55, 0.8);
+  const villageWindows = new THREE.InstancedMesh(villageWindowGeometry, windowMaterial, manifest.villageBuildings.length);
+  const windowFrames = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 0.08), timber, manifest.villageBuildings.length * 4);
+  const chimneys = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), stone, manifest.villageBuildings.length);
+  const signCount = villageDetails.filter((details) => details.hasSign).length;
+  const signMaterial = new THREE.MeshStandardMaterial({ color: 0x713f2c, roughness: 0.82 });
+  const signPosts = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), timber, signCount);
+  const signBoards = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 0.14), signMaterial, signCount);
+  const villageLocalPosition = new THREE.Vector3();
+  const villageWorldPosition = new THREE.Vector3();
+  const villageQuaternion = new THREE.Quaternion();
+  let windowFrameIndex = 0;
+  let signIndex = 0;
   const roadMaterial = new THREE.MeshStandardMaterial({ color: 0x242321, roughness: 1 });
   const road = new THREE.Mesh(new THREE.PlaneGeometry(41, 4.2, 10, 1), roadMaterial);
   road.rotation.x = -Math.PI / 2;
@@ -418,12 +522,62 @@ function createWorld(seedText: string, quality: QualityTier) {
     cap.position.y = height + 1.2;
     cap.castShadow = true;
     house.add(cap);
-    const litWindow = new THREE.Mesh(new THREE.PlaneGeometry(0.55, 0.8), windowMaterial);
-    litWindow.position.set(0, height * 0.55, side < 0 ? depth / 2 + 0.01 : -depth / 2 - 0.01);
-    litWindow.rotation.y = side < 0 ? 0 : Math.PI;
-    house.add(litWindow);
     village.add(house);
+
+    const details = villageDetails[index];
+    const facadeZ = side < 0 ? depth / 2 + 0.02 : -depth / 2 - 0.02;
+    villageQuaternion.setFromAxisAngle(treeUp, building.rotation);
+    villageLocalPosition.set(0, height * 0.55, facadeZ).applyQuaternion(villageQuaternion);
+    villageWorldPosition.set(x, y, z).add(villageLocalPosition);
+    quaternion.setFromAxisAngle(treeUp, building.rotation + (side < 0 ? 0 : Math.PI));
+    detailMatrix.compose(villageWorldPosition, quaternion, new THREE.Vector3(1, 1, 1));
+    villageWindows.setMatrixAt(index, detailMatrix);
+
+    const frameDepth = facadeZ + (side < 0 ? 0.04 : -0.04);
+    for (const offsetX of [-0.34, 0.34]) {
+      villageLocalPosition.set(offsetX, height * 0.55, frameDepth).applyQuaternion(villageQuaternion);
+      villageWorldPosition.set(x, y, z).add(villageLocalPosition);
+      detailMatrix.compose(villageWorldPosition, villageQuaternion, new THREE.Vector3(0.07, 0.92, 1));
+      windowFrames.setMatrixAt(windowFrameIndex, detailMatrix);
+      windowFrameIndex += 1;
+    }
+    for (const offsetY of [-0.43, 0.43]) {
+      villageLocalPosition.set(0, height * 0.55 + offsetY, frameDepth).applyQuaternion(villageQuaternion);
+      villageWorldPosition.set(x, y, z).add(villageLocalPosition);
+      detailMatrix.compose(villageWorldPosition, villageQuaternion, new THREE.Vector3(0.76, 0.07, 1));
+      windowFrames.setMatrixAt(windowFrameIndex, detailMatrix);
+      windowFrameIndex += 1;
+    }
+
+    villageLocalPosition.set(details.chimneySide * width * details.chimneyOffset, height + building.roofHeight * 0.68, side * depth * 0.16).applyQuaternion(villageQuaternion);
+    villageWorldPosition.set(x, y, z).add(villageLocalPosition);
+    detailMatrix.compose(villageWorldPosition, villageQuaternion, new THREE.Vector3(0.32, building.roofHeight, 0.32));
+    chimneys.setMatrixAt(index, detailMatrix);
+
+    if (details.hasSign) {
+      const signZ = facadeZ + (side < 0 ? 0.5 : -0.5);
+      villageLocalPosition.set(details.signSide * (width / 2 + 0.48), 1.2, signZ).applyQuaternion(villageQuaternion);
+      villageWorldPosition.set(x, y, z).add(villageLocalPosition);
+      detailMatrix.compose(villageWorldPosition, villageQuaternion, new THREE.Vector3(0.12, 2.4, 0.12));
+      signPosts.setMatrixAt(signIndex, detailMatrix);
+      villageLocalPosition.set(details.signSide * (width / 2 + 0.48), 2.35, signZ).applyQuaternion(villageQuaternion);
+      villageWorldPosition.set(x, y, z).add(villageLocalPosition);
+      detailMatrix.compose(villageWorldPosition, villageQuaternion, new THREE.Vector3(0.92, 0.58, 1));
+      signBoards.setMatrixAt(signIndex, detailMatrix);
+      signIndex += 1;
+    }
   });
+  [villageWindows, windowFrames, chimneys, signPosts, signBoards].forEach((batch) => {
+    batch.instanceMatrix.needsUpdate = true;
+    batch.computeBoundingSphere();
+    batch.castShadow = batch !== villageWindows;
+    village.add(batch);
+  });
+  villageWindows.name = 'village-instanced-windows';
+  windowFrames.name = 'village-seed-window-frames';
+  chimneys.name = 'village-seed-chimneys';
+  signPosts.name = 'village-seed-sign-posts';
+  signBoards.name = 'village-seed-sign-boards';
 
   const stairRoot = new THREE.Group();
   stairRoot.name = 'moving-staircase';

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
+import { createCastleDetailProfile, createForestTreeDetailProfile, createVillageDetailProfile } from '../app/procedural-details.ts';
 import { createWorldManifest, hashSeed, sampleClosedTourPosition, seededStream, terrainHeight, validateWorldManifest } from '../app/world-core.ts';
 
 test('same seed and quality produce an identical manifest', () => {
@@ -60,7 +61,7 @@ test('manifest validation rejects a dangling castle route', () => {
 
 test('camera landmarks are deterministic, complete, and terrain-safe', () => {
   const manifest = createWorldManifest('MAGIC-001', 'high');
-  assert.equal(manifest.generatorVersion, '1.7.0');
+  assert.equal(manifest.generatorVersion, '1.8.0');
   assert.deepEqual(manifest.cameraLandmarks.map((landmark) => landmark.id), ['castle', 'village', 'lake', 'forest', 'tower']);
   assert.equal(new Set(manifest.cameraLandmarks.map((landmark) => landmark.label)).size, 5);
   for (const landmark of manifest.cameraLandmarks) {
@@ -150,6 +151,25 @@ test('village plans obey constraints and do not cascade across quality tiers', (
     assert.deepEqual(high.villageBuildings.slice(0, low.villageBuildings.length), low.villageBuildings);
     assert.deepEqual(high.towerHeights, low.towerHeights);
   }
+});
+
+test('architectural and forest detail profiles are deterministic and bounded', () => {
+  const castle = createCastleDetailProfile('MAGIC-001');
+  assert.deepEqual(castle, createCastleDetailProfile('MAGIC-001'));
+  assert.notDeepEqual(castle, createCastleDetailProfile('MAGIC-002'));
+  assert.ok(castle.battlementScale >= 0.88 && castle.battlementScale <= 1.1);
+  assert.ok(castle.gateArchScale >= 0.92 && castle.gateArchScale <= 1.08);
+
+  const village = Array.from({ length: 12 }, (_, index) => createVillageDetailProfile('MAGIC-001', index));
+  assert.deepEqual(village, Array.from({ length: 12 }, (_, index) => createVillageDetailProfile('MAGIC-001', index)));
+  assert.equal(village.filter((profile) => profile.hasSign).length, 3);
+  assert.ok(village.every((profile) => profile.chimneyOffset >= 0.42 && profile.chimneyOffset <= 0.7));
+
+  const forest = Array.from({ length: 20 }, (_, index) => createForestTreeDetailProfile('MAGIC-001', index));
+  assert.deepEqual(forest, Array.from({ length: 20 }, (_, index) => createForestTreeDetailProfile('MAGIC-001', index)));
+  assert.ok(forest.every((profile) => profile.heightScale >= 0.82 && profile.heightScale <= 1.26));
+  assert.ok(forest.every((profile) => Math.abs(profile.leanX) <= 0.07 && Math.abs(profile.leanZ) <= 0.07));
+  assert.ok(new Set(forest.map((profile) => profile.canopyWidth.toFixed(3))).size > 10);
 });
 
 test('generation source never calls Math.random', async () => {
