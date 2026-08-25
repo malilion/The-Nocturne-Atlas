@@ -13,10 +13,12 @@ import { VignetteShader } from 'three/addons/shaders/VignetteShader.js';
 import { CameraManager, type CameraMode, type FixedView, type LandmarkId } from './camera-manager';
 import { EnvironmentSystem, type TimeOfDay } from './environment-system';
 import { createGreatHallArchitecture } from './great-hall';
+import { runIncrementally, runSynchronously } from './incremental-builder';
 import { createCastleDetailProfile, createForestTreeDetailProfile, createVillageDetailProfile } from './procedural-details';
-import { createRoofMaterial, createStoneMaterial, createTerrainMaterial, createWoodMaterial } from './procedural-materials';
+import { createGlassMaterial, createMetalMaterial, createRoofMaterial, createStoneMaterial, createTerrainMaterial, createWoodMaterial } from './procedural-materials';
 import { RebuildCoordinator } from './rebuild-coordinator';
 import { ResourceRegistry } from './resource-registry';
+import { createAmbientEmbellishments, createCastleEmbellishments, createForestEmbellishments, createVillageEmbellishments } from './world-embellishments';
 import { createWorldManifest, hashSeed, mulberry32, terrainHeight, validateWorldManifest, type QualityTier, type WorldManifest } from './world-core';
 
 const DEFAULT_SEED = 'MAGIC-001';
@@ -70,16 +72,36 @@ function disposeObject(root: THREE.Object3D) {
   return { geometries: report.byCategory.geometries ?? 0, materials: report.byCategory.materials ?? 0 };
 }
 
-function createWorld(seedText: string, quality: QualityTier, signal?: AbortSignal) {
-  signal?.throwIfAborted();
+interface GeneratedWorld {
+  root: THREE.Group;
+  waterMaterial: THREE.ShaderMaterial;
+  magicMaterial: THREE.ShaderMaterial;
+  stairRoot: THREE.Group;
+  stairTargets: [THREE.Quaternion, THREE.Quaternion];
+  candleRoot: THREE.Group;
+  zoneDebug: THREE.Group;
+  starMaterial: THREE.PointsMaterial;
+  celestialOrb: THREE.Mesh;
+  celestialMaterial: THREE.MeshBasicMaterial;
+  cloudRoot: THREE.Group;
+  runeRoot: THREE.Group;
+  floatingBookRoot: THREE.Group;
+  movingLanternRoot: THREE.Group;
+  manifest: WorldManifest;
+  validation: ReturnType<typeof validateWorldManifest>;
+}
+
+function* createWorldChunks(seedText: string, quality: QualityTier): Generator<void, GeneratedWorld, void> {
   const manifest = createWorldManifest(seedText, quality);
   const validation = validateWorldManifest(manifest);
   if (!validation.ok) throw new Error(`World manifest rejected: ${validation.errors.join(' ')}`);
-  signal?.throwIfAborted();
   const seed = manifest.seedHash;
   const random = mulberry32(hashSeed(`${manifest.seed}::world`));
   const root = new THREE.Group();
   root.name = `world-${seedText}`;
+  let completed = false;
+
+  try {
 
   const starRandom = mulberry32(hashSeed(`${manifest.seed}::atmosphere/stars`));
   const starCount = quality === 'low' ? 280 : quality === 'medium' ? 620 : 1100;
@@ -91,6 +113,7 @@ function createWorld(seedText: string, quality: QualityTier, signal?: AbortSigna
     starPositions[index * 3] = Math.cos(azimuth) * Math.cos(elevation) * distance;
     starPositions[index * 3 + 1] = Math.sin(elevation) * distance;
     starPositions[index * 3 + 2] = Math.sin(azimuth) * Math.cos(elevation) * distance;
+    if ((index + 1) % 256 === 0) yield;
   }
   const starGeometry = new THREE.BufferGeometry();
   starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
@@ -100,22 +123,28 @@ function createWorld(seedText: string, quality: QualityTier, signal?: AbortSigna
 
   const terrainGeometry = new THREE.PlaneGeometry(150, 150, 96, 96);
   terrainGeometry.rotateX(-Math.PI / 2);
-  const positions = terrainGeometry.attributes.position;
-  for (let i = 0; i < positions.count; i += 1) {
-    const x = positions.getX(i);
-    const z = positions.getZ(i);
-    positions.setY(i, terrainHeight(x, z, seed));
-  }
-  terrainGeometry.computeVertexNormals();
   const terrain = new THREE.Mesh(
     terrainGeometry,
     createTerrainMaterial(seed),
   );
   terrain.receiveShadow = true;
   root.add(terrain);
+  const positions = terrainGeometry.attributes.position;
+  for (let i = 0; i < positions.count; i += 1) {
+    const x = positions.getX(i);
+    const z = positions.getZ(i);
+    positions.setY(i, terrainHeight(x, z, seed));
+    if ((i + 1) % 1024 === 0) yield;
+  }
+  terrainGeometry.computeVertexNormals();
+  yield;
 
   const stone = createStoneMaterial(seed);
   const roof = createRoofMaterial(seed);
+  const castleWood = createWoodMaterial(hashSeed(`${manifest.seed}::castle/interior/wood`));
+  const metal = createMetalMaterial(hashSeed(`${manifest.seed}::materials/metal`));
+  const glass = createGlassMaterial(hashSeed(`${manifest.seed}::materials/glass`));
+  const embellishmentMaterials = { stone, roof, wood: castleWood, metal, glass };
   const castleDetails = createCastleDetailProfile(manifest.seed);
   const windowMaterial = new THREE.MeshBasicMaterial({ color: new THREE.Color().setRGB(3.2, 1.2, 0.28), toneMapped: false });
   const castle = new THREE.Group();
@@ -163,11 +192,12 @@ function createWorld(seedText: string, quality: QualityTier, signal?: AbortSigna
   towerWindows.instanceMatrix.needsUpdate = true;
   towerWindows.computeBoundingSphere();
   castle.add(towerWindows);
+  yield;
 
   const greatHall = createGreatHallArchitecture(manifest.seed, {
     stone,
     roof,
-    wood: createWoodMaterial(hashSeed(`${manifest.seed}::castle/interior/wood`)),
+    wood: castleWood,
     glow: windowMaterial,
   });
   castle.add(greatHall);
@@ -247,6 +277,10 @@ function createWorld(seedText: string, quality: QualityTier, signal?: AbortSigna
   battlements.name = 'castle-seed-battlements';
   battlements.castShadow = true;
   castle.add(battlements);
+  yield;
+
+  root.add(createCastleEmbellishments(manifest, embellishmentMaterials));
+  yield;
 
   const waterMaterial = new THREE.ShaderMaterial({
     transparent: true,
@@ -299,6 +333,7 @@ function createWorld(seedText: string, quality: QualityTier, signal?: AbortSigna
   const shoreScale = new THREE.Vector3();
   const shorePosition = new THREE.Vector3();
   const shoreRocks = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(0.85, 0), stone, manifest.counts.shoreRocks);
+  root.add(shoreRocks);
   for (let i = 0; i < manifest.counts.shoreRocks; i += 1) {
     const angle = (i / manifest.counts.shoreRocks) * Math.PI * 2 + (shorelineRandom() - 0.5) * 0.18;
     const radius = 24.4 + shorelineRandom() * 3.8;
@@ -310,14 +345,15 @@ function createWorld(seedText: string, quality: QualityTier, signal?: AbortSigna
     shoreScale.set(scale * 1.4, scale * 0.75, scale);
     shoreMatrix.compose(shorePosition, shoreQuaternion, shoreScale);
     shoreRocks.setMatrixAt(i, shoreMatrix);
+    if ((i + 1) % 64 === 0) yield;
   }
   shoreRocks.castShadow = true;
   shoreRocks.receiveShadow = true;
-  root.add(shoreRocks);
 
   const reedGeometry = new THREE.ConeGeometry(0.055, 1, 5);
   const reedMaterial = new THREE.MeshStandardMaterial({ color: 0x344b35, roughness: 0.92 });
   const reeds = new THREE.InstancedMesh(reedGeometry, reedMaterial, manifest.counts.reeds);
+  root.add(reeds);
   for (let i = 0; i < manifest.counts.reeds; i += 1) {
     const angle = shorelineRandom() * Math.PI * 2;
     const radius = 22.8 + shorelineRandom() * 2.6;
@@ -329,14 +365,15 @@ function createWorld(seedText: string, quality: QualityTier, signal?: AbortSigna
     shoreScale.set(0.8 + shorelineRandom() * 0.5, height, 0.8 + shorelineRandom() * 0.5);
     shoreMatrix.compose(shorePosition, shoreQuaternion, shoreScale);
     reeds.setMatrixAt(i, shoreMatrix);
+    if ((i + 1) % 128 === 0) yield;
   }
-  root.add(reeds);
 
   const island = new THREE.Mesh(new THREE.CylinderGeometry(4.3, 5.8, 1.5, 32), createTerrainMaterial(hashSeed(`${manifest.seed}::lake/island`)));
   island.position.set(34, -1.72, 13.5);
   island.rotation.y = shorelineRandom() * Math.PI;
   island.receiveShadow = true;
   root.add(island);
+  yield;
 
   const nearTrunkGeometry = new THREE.CylinderGeometry(0.22, 0.42, 3.5, 6);
   const farTrunkGeometry = new THREE.CylinderGeometry(0.22, 0.42, 3.5, 4);
@@ -356,6 +393,8 @@ function createWorld(seedText: string, quality: QualityTier, signal?: AbortSigna
   const position = new THREE.Vector3();
   let nearTreeIndex = 0;
   let farTreeIndex = 0;
+  const treeBatches = [nearTrunks, nearCanopies, nearUpperCanopies, farTrunks, farCanopies];
+  root.add(...treeBatches);
   for (let i = 0; i < manifest.counts.trees; i += 1) {
     const isNearTree = i < manifest.forestLod.nearTrees;
     let x = 0;
@@ -408,8 +447,8 @@ function createWorld(seedText: string, quality: QualityTier, signal?: AbortSigna
     }
     if (isNearTree) nearTreeIndex += 1;
     else farTreeIndex += 1;
+    if ((i + 1) % 96 === 0) yield;
   }
-  const treeBatches = [nearTrunks, nearCanopies, nearUpperCanopies, farTrunks, farCanopies];
   treeBatches.forEach((batch) => {
     batch.instanceMatrix.needsUpdate = true;
     batch.computeBoundingSphere();
@@ -424,19 +463,23 @@ function createWorld(seedText: string, quality: QualityTier, signal?: AbortSigna
   nearUpperCanopies.name = 'forest-near-upper-canopies';
   farTrunks.name = 'forest-far-trunks';
   farCanopies.name = 'forest-far-canopies';
-  root.add(...treeBatches);
+  yield;
+
+  root.add(createForestEmbellishments(manifest, embellishmentMaterials));
+  yield;
 
   const fireflyGeometry = new THREE.SphereGeometry(0.08, 5, 5);
   const fireflyMaterial = new THREE.MeshBasicMaterial({ color: new THREE.Color().setRGB(0.7, 2.4, 0.8), toneMapped: false });
   const fireflies = new THREE.InstancedMesh(fireflyGeometry, fireflyMaterial, manifest.counts.fireflies);
+  root.add(fireflies);
   for (let i = 0; i < manifest.counts.fireflies; i += 1) {
     const x = -50 + random() * 100;
     const z = -50 + random() * 100;
     const y = terrainHeight(x, z, seed) + 1.5 + random() * 5;
     matrix.makeTranslation(x, y, z);
     fireflies.setMatrixAt(i, matrix);
+    if ((i + 1) % 128 === 0) yield;
   }
-  root.add(fireflies);
 
   const wispPositions = new Float32Array(manifest.counts.wisps * 3);
   const wispPhases = new Float32Array(manifest.counts.wisps);
@@ -450,6 +493,7 @@ function createWorld(seedText: string, quality: QualityTier, signal?: AbortSigna
     wispPositions[i * 3 + 1] = terrainHeight(x, z, seed) + 2 + wispRandom() * 9;
     wispPositions[i * 3 + 2] = z;
     wispPhases[i] = wispRandom() * Math.PI * 2;
+    if ((i + 1) % 128 === 0) yield;
   }
   const wispGeometry = new THREE.BufferGeometry();
   wispGeometry.setAttribute('position', new THREE.BufferAttribute(wispPositions, 3));
@@ -487,6 +531,7 @@ function createWorld(seedText: string, quality: QualityTier, signal?: AbortSigna
     `,
   });
   root.add(new THREE.Points(wispGeometry, magicMaterial));
+  yield;
 
   const village = new THREE.Group();
   village.name = 'village-of-lumen-row';
@@ -504,6 +549,7 @@ function createWorld(seedText: string, quality: QualityTier, signal?: AbortSigna
   const signMaterial = new THREE.MeshStandardMaterial({ color: 0x713f2c, roughness: 0.82 });
   const signPosts = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), timber, signCount);
   const signBoards = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 0.14), signMaterial, signCount);
+  village.add(villageWindows, windowFrames, chimneys, signPosts, signBoards);
   const villageLocalPosition = new THREE.Vector3();
   const villageWorldPosition = new THREE.Vector3();
   const villageQuaternion = new THREE.Quaternion();
@@ -516,7 +562,7 @@ function createWorld(seedText: string, quality: QualityTier, signal?: AbortSigna
   road.position.set(-31, terrainHeight(-31, 13, seed) + 0.12, 13);
   road.receiveShadow = true;
   village.add(road);
-  manifest.villageBuildings.forEach((building, index) => {
+  for (const [index, building] of manifest.villageBuildings.entries()) {
     const [x, z] = building.position;
     const y = terrainHeight(x, z, seed);
     const { width, depth, height, side } = building;
@@ -580,18 +626,22 @@ function createWorld(seedText: string, quality: QualityTier, signal?: AbortSigna
       signBoards.setMatrixAt(signIndex, detailMatrix);
       signIndex += 1;
     }
-  });
+    if ((index + 1) % 8 === 0) yield;
+  }
   [villageWindows, windowFrames, chimneys, signPosts, signBoards].forEach((batch) => {
     batch.instanceMatrix.needsUpdate = true;
     batch.computeBoundingSphere();
     batch.castShadow = batch !== villageWindows;
-    village.add(batch);
   });
   villageWindows.name = 'village-instanced-windows';
   windowFrames.name = 'village-seed-window-frames';
   chimneys.name = 'village-seed-chimneys';
   signPosts.name = 'village-seed-sign-posts';
   signBoards.name = 'village-seed-sign-boards';
+  yield;
+
+  root.add(createVillageEmbellishments(manifest, embellishmentMaterials));
+  yield;
 
   const stairRoot = new THREE.Group();
   stairRoot.name = 'moving-staircase';
@@ -630,6 +680,8 @@ function createWorld(seedText: string, quality: QualityTier, signal?: AbortSigna
   const flameMaterial = new THREE.MeshBasicMaterial({ color: new THREE.Color().setRGB(3.4, 0.82, 0.12), toneMapped: false });
   const wax = new THREE.InstancedMesh(waxGeometry, waxMaterial, manifest.counts.candles);
   const flames = new THREE.InstancedMesh(flameGeometry, flameMaterial, manifest.counts.candles);
+  candleRoot.add(wax, flames);
+  root.add(candleRoot);
   for (let i = 0; i < manifest.counts.candles; i += 1) {
     const angle = random() * Math.PI * 2;
     const radius = 7 + random() * 15;
@@ -640,9 +692,8 @@ function createWorld(seedText: string, quality: QualityTier, signal?: AbortSigna
     wax.setMatrixAt(i, matrix);
     matrix.makeTranslation(x, y + 0.39, z);
     flames.setMatrixAt(i, matrix);
+    if ((i + 1) % 64 === 0) yield;
   }
-  candleRoot.add(wax, flames);
-  root.add(candleRoot);
 
   const celestialMaterial = new THREE.MeshBasicMaterial({ color: new THREE.Color().setRGB(1.25, 1.4, 2.1), toneMapped: false });
   const moon = new THREE.Mesh(new THREE.SphereGeometry(4.3, 32, 32), celestialMaterial);
@@ -664,7 +715,40 @@ function createWorld(seedText: string, quality: QualityTier, signal?: AbortSigna
   zoneDebug.visible = false;
   root.add(zoneDebug);
 
-  return { root, waterMaterial, magicMaterial, stairRoot, stairTargets, candleRoot, zoneDebug, starMaterial, celestialOrb: moon, celestialMaterial, manifest, validation };
+  const ambientEmbellishments = createAmbientEmbellishments(manifest, quality, embellishmentMaterials);
+  root.add(ambientEmbellishments.root);
+  yield;
+
+    completed = true;
+    return {
+      root,
+      waterMaterial,
+      magicMaterial,
+      stairRoot,
+      stairTargets,
+      candleRoot,
+      zoneDebug,
+      starMaterial,
+      celestialOrb: moon,
+      celestialMaterial,
+      cloudRoot: ambientEmbellishments.cloudRoot,
+      runeRoot: ambientEmbellishments.runeRoot,
+      floatingBookRoot: ambientEmbellishments.floatingBookRoot,
+      movingLanternRoot: ambientEmbellishments.movingLanternRoot,
+      manifest,
+      validation,
+    };
+  } finally {
+    if (!completed) disposeObject(root);
+  }
+}
+
+function createWorld(seedText: string, quality: QualityTier, signal?: AbortSignal) {
+  return runSynchronously(createWorldChunks(seedText, quality), signal);
+}
+
+function createWorldIncrementally(seedText: string, quality: QualityTier, signal: AbortSignal) {
+  return runIncrementally(createWorldChunks(seedText, quality), signal);
 }
 
 export default function Home() {
@@ -806,6 +890,8 @@ export default function Home() {
     let soakFinalSampleUntil = 0;
     let soakFinalHeapMb: number | null = null;
     let contextAvailable = true;
+    let rebuildInProgress = false;
+    let disposed = false;
     let previousElapsed = 0;
     let framesSinceSample = 0;
     let sampleStarted = 0;
@@ -841,74 +927,74 @@ export default function Home() {
     renderer.domElement.addEventListener('webglcontextlost', onContextLost);
     renderer.domElement.addEventListener('webglcontextrestored', onContextRestored);
 
-    const render = () => {
-      frame = requestAnimationFrame(render);
-      const elapsed = (performance.now() - startedAt) / 1000;
-      const delta = Math.min(0.05, elapsed - previousElapsed);
-      previousElapsed = elapsed;
-      if (!contextAvailable) return;
-      if (!ambientPausedRef.current) animationTime += delta;
+    const processNextRebuild = () => {
+      if (rebuildInProgress) return;
       const rebuildTicket = rebuildCoordinator.takeLatest();
-      if (rebuildTicket) {
-        let nextWorld: ReturnType<typeof createWorld> | null = null;
+      if (!rebuildTicket) return;
+
+      rebuildInProgress = true;
+      void (async () => {
+        let nextWorld: GeneratedWorld | null = null;
         try {
           const generationStarted = performance.now();
-          nextWorld = createWorld(rebuildTicket.payload.seed, rebuildTicket.payload.quality, rebuildTicket.signal);
+          nextWorld = await createWorldIncrementally(rebuildTicket.payload.seed, rebuildTicket.payload.quality, rebuildTicket.signal);
           lastGenerationMs = performance.now() - generationStarted;
           rebuildTicket.signal.throwIfAborted();
-          if (!rebuildCoordinator.complete(rebuildTicket.id)) {
+          if (!rebuildCoordinator.complete(rebuildTicket.id) || disposed) {
             disposeObject(nextWorld.root);
             nextWorld = null;
+            return;
+          }
+
+          const previousWorld = world;
+          scene.add(nextWorld.root);
+          world = nextWorld;
+          seedRef.current = rebuildTicket.payload.seed;
+          qualityRef.current = rebuildTicket.payload.quality;
+          setActiveSeed(rebuildTicket.payload.seed);
+          setQuality(rebuildTicket.payload.quality);
+          if (fixedPoseRef.current) {
+            const updatedFixedView = world.manifest.validationViews.find((view) => view.id === fixedPoseRef.current?.id) ?? null;
+            fixedPoseRef.current = updatedFixedView;
+            setFixedView(updatedFixedView);
+          }
+          cameraManager.setManifest(world.manifest);
+          scene.remove(previousWorld.root);
+          lastDisposal = disposeObject(previousWorld.root);
+          renderer.setPixelRatio(Math.min(window.devicePixelRatio, renderScale()));
+          renderer.setSize(mount.clientWidth, mount.clientHeight);
+          composer.setPixelRatio(renderer.getPixelRatio());
+          composer.setSize(mount.clientWidth, mount.clientHeight);
+          updateFxaaResolution();
+          setManifest(world.manifest);
+          setGenerationError(null);
+          if (soakRemaining > 0) {
+            soakRemaining -= 1;
+            soakCompleted += 1;
+            const running = soakRemaining > 0;
+            if (!running) {
+              soakFinalSampleUntil = (performance.now() - startedAt) / 1000 + 3;
+              soakFinalHeapMb = null;
+            }
+            setSoakAudit({
+              running: true,
+              completed: soakCompleted,
+              total: 20,
+              baselineGeometries: soakBaselineGeometries,
+              finalGeometries: null,
+              baselineHeapMb: soakBaselineHeapMb,
+              finalHeapMb: null,
+            });
+            setGenerationStatus('building');
+            if (running) queueRebuild('audit');
           } else {
-            const previousWorld = world;
-            scene.add(nextWorld.root);
-            world = nextWorld;
-            seedRef.current = rebuildTicket.payload.seed;
-            qualityRef.current = rebuildTicket.payload.quality;
-            setActiveSeed(rebuildTicket.payload.seed);
-            setQuality(rebuildTicket.payload.quality);
-            if (fixedPoseRef.current) {
-              const updatedFixedView = world.manifest.validationViews.find((view) => view.id === fixedPoseRef.current?.id) ?? null;
-              fixedPoseRef.current = updatedFixedView;
-              setFixedView(updatedFixedView);
-            }
-            cameraManager.setManifest(world.manifest);
-            scene.remove(previousWorld.root);
-            lastDisposal = disposeObject(previousWorld.root);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, renderScale()));
-            renderer.setSize(mount.clientWidth, mount.clientHeight);
-            composer.setPixelRatio(renderer.getPixelRatio());
-            composer.setSize(mount.clientWidth, mount.clientHeight);
-            updateFxaaResolution();
-            setManifest(world.manifest);
-            setGenerationError(null);
-            if (soakRemaining > 0) {
-              soakRemaining -= 1;
-              soakCompleted += 1;
-              const running = soakRemaining > 0;
-              if (!running) {
-                soakFinalSampleUntil = elapsed + 3;
-                soakFinalHeapMb = null;
-              }
-              setSoakAudit({
-                running: true,
-                completed: soakCompleted,
-                total: 20,
-                baselineGeometries: soakBaselineGeometries,
-                finalGeometries: null,
-                baselineHeapMb: soakBaselineHeapMb,
-                finalHeapMb: null,
-              });
-              setGenerationStatus('building');
-              if (running) queueRebuild('audit');
-            } else {
-              rebuildLockedRef.current = false;
-              setGenerationStatus('ready');
-            }
+            rebuildLockedRef.current = false;
+            setGenerationStatus('ready');
           }
         } catch (error) {
           if (nextWorld) disposeObject(nextWorld.root);
           rebuildCoordinator.complete(rebuildTicket.id);
+          if (disposed) return;
           const canceled = error instanceof DOMException && error.name === 'AbortError';
           if (canceled && rebuildCoordinator.hasPending) {
             setGenerationStatus('building');
@@ -928,8 +1014,20 @@ export default function Home() {
             setGenerationError(error instanceof Error ? error.message : 'World generation failed.');
             setGenerationStatus('error');
           }
+        } finally {
+          rebuildInProgress = false;
         }
-      }
+      })();
+    };
+
+    const render = () => {
+      frame = requestAnimationFrame(render);
+      const elapsed = (performance.now() - startedAt) / 1000;
+      const delta = Math.min(0.05, elapsed - previousElapsed);
+      previousElapsed = elapsed;
+      if (!contextAvailable) return;
+      if (!ambientPausedRef.current) animationTime += delta;
+      processNextRebuild();
       const environmentFrame = environment.update(delta, {
         timeOfDay: timeOfDayRef.current,
         fogEnabled: fogRef.current,
@@ -954,6 +1052,12 @@ export default function Home() {
       const stairBlend = stairPhase < 0.5 ? THREE.MathUtils.smoothstep(stairPhase, 0.08, 0.42) : 1 - THREE.MathUtils.smoothstep(stairPhase, 0.58, 0.92);
       world.stairRoot.quaternion.slerpQuaternions(world.stairTargets[0], world.stairTargets[1], stairBlend);
       world.candleRoot.position.y = Math.sin(animationTime * 0.8) * 0.24;
+      world.cloudRoot.rotation.y = animationTime * 0.0025;
+      world.runeRoot.position.y = Math.sin(animationTime * 1.25) * 0.055;
+      world.floatingBookRoot.rotation.y = Math.sin(animationTime * 0.22) * 0.18;
+      world.floatingBookRoot.position.y = Number(world.floatingBookRoot.userData.baseY) + Math.sin(animationTime * 0.72) * 0.4;
+      world.movingLanternRoot.rotation.y = Math.sin(animationTime * 0.075) * 0.12;
+      world.movingLanternRoot.position.y = Math.sin(animationTime * 0.48) * 0.34;
 
       const requestedScene = sceneRequestRef.current;
       if (requestedScene) sceneRequestRef.current = null;
@@ -1028,6 +1132,7 @@ export default function Home() {
     };
     window.addEventListener('resize', resize);
     return () => {
+      disposed = true;
       cancelAnimationFrame(frame);
       window.removeEventListener('resize', resize);
       window.removeEventListener('wizard-rebuild', rebuild);
