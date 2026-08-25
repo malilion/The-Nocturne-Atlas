@@ -21,6 +21,7 @@ import { ResourceRegistry } from './resource-registry';
 import { createAmbientEmbellishments, createCastleEmbellishments, createForestEmbellishments, createVillageEmbellishments } from './world-embellishments';
 import { createWorldManifest, hashSeed, mulberry32, terrainHeight, validateWorldManifest, type QualityTier, type WorldManifest, type WorldZoneType } from './world-core';
 import { createWorldRegions } from './world-regions';
+import { advanceStationQuest, getStationQuest, getStationQuestCopy, type StationQuestStep } from './station-quest';
 
 const DEFAULT_SEED = 'MAGIC-001';
 const SCENE_LABELS: Record<LandmarkId, string> = {
@@ -45,12 +46,6 @@ const FIXED_SCENE_SHORTCUTS: Partial<Record<FixedView['id'], string>> = {
   'great-hall': 'H',
   'station-hall': 'I',
 };
-const STATION_NOTICES = [
-  'Platform nine remains unlisted. Present the obsidian seal before 00:17.',
-  'The Umbravale service is delayed until the memory lantern returns to Orison.',
-  'No luggage bearing a silver moth may cross the Veil after midnight.',
-] as const;
-
 interface PerformanceStats {
   fps: number;
   frameMs: number;
@@ -825,7 +820,7 @@ export default function Home() {
   const [ambientPaused, setAmbientPaused] = useState(false);
   const [timeOfDay, setTimeOfDay] = useState<TimeOfDay>('night');
   const [fixedView, setFixedView] = useState<FixedView | null>(null);
-  const [stationNoticeOpen, setStationNoticeOpen] = useState(false);
+  const [stationQuestState, setStationQuestState] = useState<{ manifestHash: string; step: StationQuestStep }>({ manifestHash: '', step: 'sealed' });
   const [generationStatus, setGenerationStatus] = useState<'ready' | 'building' | 'error'>('ready');
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [stats, setStats] = useState<PerformanceStats>({ fps: 60, frameMs: 16.7, calls: 0, triangles: 0, points: 0, lines: 0, geometries: 0, textures: 0, heapMb: null, generationMs: 0, disposedGeometries: 0, disposedMaterials: 0 });
@@ -1331,6 +1326,10 @@ export default function Home() {
   const auditGeometryStable = soakAudit.finalGeometries !== null && Math.abs(soakAudit.baselineGeometries - soakAudit.finalGeometries) <= 1;
   const auditHeapStable = soakAudit.finalHeapMb === null || soakAudit.baselineHeapMb === null || soakAudit.finalHeapMb <= soakAudit.baselineHeapMb + Math.max(8, soakAudit.baselineHeapMb * 0.15);
   const rebuildLocked = generationStatus === 'building' || soakAudit.running;
+  const stationQuest = getStationQuest(manifest.seedHash);
+  const stationQuestStep = stationQuestState.manifestHash === manifest.manifestHash ? stationQuestState.step : 'sealed';
+  const stationQuestCopy = getStationQuestCopy(stationQuestStep, stationQuest);
+  const progressStationQuest = () => setStationQuestState({ manifestHash: manifest.manifestHash, step: advanceStationQuest(stationQuestStep) });
 
   return (
     <main className={`experience-shell ${entered ? 'is-entered' : ''} ${timeOfDay === 'day' ? 'is-day' : 'is-night'}`}>
@@ -1363,11 +1362,12 @@ export default function Home() {
         <div className="seed-meta"><span>Active · {activeSeed}</span><span><button onClick={randomSeed} disabled={rebuildLocked}>Randomize</button><i>·</i><button onClick={copySeed}>{copied ? 'Copied' : 'Copy seed'}</button></span></div>
         {generationError && <p className="generation-error" role="alert">The previous world remains active. {generationError}</p>}
       </section>
-      {entered && fixedView?.id === 'station-hall' && <aside className="station-interaction" aria-live="polite">
-        <p>Veilcross departures · 00:17</p>
-        <h2>Sealed midnight notice</h2>
-        <p className={stationNoticeOpen ? 'is-revealed' : ''}>{stationNoticeOpen ? STATION_NOTICES[manifest.seedHash % STATION_NOTICES.length] : 'A brass seal hides the final destination from ordinary passengers.'}</p>
-        <button type="button" onClick={() => setStationNoticeOpen((open) => !open)} aria-expanded={stationNoticeOpen}>{stationNoticeOpen ? 'Reseal notice' : 'Inspect departure board'}</button>
+      {entered && fixedView?.id === 'station-hall' && <aside className={`station-interaction is-${stationQuestStep}`} aria-live="polite">
+        <p>Veilcross quest · {stationQuestCopy.progress}</p>
+        <h2>The unlisted departure</h2>
+        <strong>{stationQuest.destination}</strong>
+        <p>{stationQuestCopy.body}</p>
+        {stationQuestCopy.action ? <button type="button" onClick={progressStationQuest}>{stationQuestCopy.action}</button> : <span className="quest-complete">Passage authorized</span>}
       </aside>}
       <aside className={`performance-hud ${hudOpen ? 'is-open' : ''}`} aria-hidden={!hudOpen}>
         <header><span>Field diagnostics</span><button onClick={() => setHudOpen(false)}>×</button></header>

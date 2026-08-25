@@ -14,6 +14,32 @@ function markShadow(mesh: THREE.Mesh | THREE.InstancedMesh, receive = false) {
   return mesh;
 }
 
+function createStationFigure(name: string, role: string, materials: StationHallMaterials, cloakColor: number) {
+  const figure = new THREE.Group();
+  figure.name = name;
+  figure.userData.role = role;
+  figure.userData.interactive = true;
+
+  const cloakMaterial = new THREE.MeshStandardMaterial({ color: cloakColor, roughness: 0.9, metalness: 0.02 });
+  const skinMaterial = new THREE.MeshStandardMaterial({ color: 0xb9947d, roughness: 0.88 });
+  const badgeMaterial = new THREE.MeshBasicMaterial({ color: new THREE.Color().setRGB(1.6, 0.86, 0.28), toneMapped: false });
+  const cloak = markShadow(new THREE.Mesh(new THREE.ConeGeometry(0.52, 1.85, 8), cloakMaterial));
+  cloak.name = `${name}-cloak`;
+  cloak.position.y = 1.08;
+  const head = markShadow(new THREE.Mesh(new THREE.SphereGeometry(0.3, 12, 9), skinMaterial));
+  head.position.y = 2.22;
+  const hatBrim = markShadow(new THREE.Mesh(new THREE.CylinderGeometry(0.47, 0.47, 0.08, 12), materials.wood));
+  hatBrim.position.y = 2.48;
+  const hatCrown = markShadow(new THREE.Mesh(new THREE.ConeGeometry(0.31, 0.74, 10), materials.wood));
+  hatCrown.position.y = 2.82;
+  hatCrown.rotation.z = 0.08;
+  const badge = new THREE.Mesh(new THREE.OctahedronGeometry(0.11, 0), badgeMaterial);
+  badge.name = `${name}-quest-badge`;
+  badge.position.set(0, 1.5, 0.47);
+  figure.add(cloak, head, hatBrim, hatCrown, badge);
+  return figure;
+}
+
 export function createStationHallInterior(seed: string, materials: StationHallMaterials) {
   const hall = new THREE.Group();
   hall.name = 'veilcross-waiting-hall';
@@ -139,7 +165,7 @@ export function createStationHallInterior(seed: string, materials: StationHallMa
   const anchors = new THREE.Group();
   anchors.name = 'veilcross-content-anchors';
   for (const [name, role, coordinates] of [
-    ['station-npc-clerk-anchor', 'npc', [0, 0.48, -2.25]],
+    ['station-npc-clerk-anchor', 'npc', [2.3, 0.48, -3.32]],
     ['station-npc-conductor-anchor', 'npc', [4.8, 0.48, 2.85]],
     ['station-quest-departure-anchor', 'quest', [0, 4.25, -3.2]],
   ] as const) {
@@ -149,6 +175,18 @@ export function createStationHallInterior(seed: string, materials: StationHallMa
     anchor.position.set(...coordinates);
     anchors.add(anchor);
   }
+  const clerkAnchor = anchors.getObjectByName('station-npc-clerk-anchor')!;
+  const clerk = createStationFigure('veilcross-clerk-elyra', 'station-clerk', materials, 0x44345d);
+  clerk.rotation.y = Math.PI;
+  clerkAnchor.add(clerk);
+  const conductorAnchor = anchors.getObjectByName('station-npc-conductor-anchor')!;
+  const conductor = createStationFigure('veilcross-conductor', 'station-conductor', materials, 0x243f3b);
+  conductor.rotation.y = -Math.PI * 0.7;
+  const staff = markShadow(new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.045, 2.25, 6), materials.metal));
+  staff.name = 'veilcross-conductor-staff';
+  staff.position.set(0.58, 1.1, 0);
+  conductor.add(staff);
+  conductorAnchor.add(conductor);
   hall.add(anchors);
 
   hall.traverse((object) => {

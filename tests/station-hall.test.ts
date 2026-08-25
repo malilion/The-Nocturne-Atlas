@@ -27,6 +27,10 @@ test('Veilcross creates a complete hollow waiting hall with content anchors', ()
     'station-npc-clerk-anchor',
     'station-npc-conductor-anchor',
     'station-quest-departure-anchor',
+    'veilcross-clerk-elyra',
+    'veilcross-clerk-elyra-quest-badge',
+    'veilcross-conductor',
+    'veilcross-conductor-staff',
   ];
 
   for (const name of requiredNames) assert.ok(hall.getObjectByName(name), `Missing ${name}`);
@@ -34,6 +38,8 @@ test('Veilcross creates a complete hollow waiting hall with content anchors', ()
   assert.equal((hall.getObjectByName('veilcross-seeded-luggage') as THREE.InstancedMesh).count, 14);
   assert.equal(hall.getObjectByName('station-npc-clerk-anchor')?.userData.role, 'npc');
   assert.equal(hall.getObjectByName('station-quest-departure-anchor')?.userData.role, 'quest');
+  assert.equal(hall.getObjectByName('veilcross-clerk-elyra')?.userData.interactive, true);
+  assert.equal(hall.getObjectByName('veilcross-conductor')?.userData.role, 'station-conductor');
 });
 
 test('Veilcross luggage placement is deterministic and seed-sensitive', () => {
