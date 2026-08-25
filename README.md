@@ -13,7 +13,7 @@ An original, seed-driven 3D wizarding world built with Three.js and TypeScript. 
 - `1`–`5` — jump directly to Castle, Village, Lake, Forest, or Tower
 - `N` — switch between day and night
 
-The seed panel accepts any text. Re-entering the same seed recreates the same world. The HUD shows live frame rate, draw calls, triangle count, GPU geometry/texture ownership, generation time, and the resources released by the last rebuild.
+The seed panel accepts any text. Re-entering the same seed recreates the same world. The HUD shows live frame and frame time, draw calls, triangles, points/lines, GPU geometry/texture ownership, generation time, optional browser JS heap data, and the resources released by the last rebuild.
 
 `Enter realm` starts the immersive experience and collapses the landing copy and seed panel. After entering, use the `Seed` control in the top bar to reopen the panel; its primary action then becomes `Rebuild realm`.
 
@@ -41,6 +41,8 @@ Terrain, castle stone, slate roofs, tree trunks, and village timber use seed-awa
 The lake, shoreline rocks, reeds, and island share a single deterministic boundary. The water shader includes analytic waves, depth-to-shore color, Fresnel response, moon highlights, and a restrained shoreline foam band. Water motion is adjustable live from the HUD, while shore ecology density follows the selected quality tier.
 
 World regeneration uses an atomic swap: a new world is constructed and validated before replacing the active root. If generation fails, the existing world remains visible and usable.
+
+WebGL context loss pauses rendering and surfaces a recoverable status; context restoration triggers a validated atomic rebuild. The rebuild audit records both GPU geometry and browser heap samples when the runtime exposes heap telemetry.
 
 The castle manifest is a connected topology of towers, hall, courtyard, gate, corridors, bridges, and one moving-stair route. Runtime validation rejects missing endpoints, disconnected nodes, unsafe camera landmarks, invalid zone boundaries, or mismatched procedural counts. The staircase rotates between two physical landing platforms with quaternion interpolation.
 
