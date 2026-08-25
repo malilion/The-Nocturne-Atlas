@@ -4,7 +4,7 @@ An original, seed-driven 3D wizarding world built with Three.js and TypeScript. 
 
 ## Scene gallery
 
-Captured from the deterministic `MAGIC-001` world at Medium quality in night mode. Each image is an actual in-app scene-switch destination; the tour remains paused after every transition.
+Captured from the deterministic `MAGIC-001` world with generator `1.7.0` at Medium quality in night mode. Each image is an actual in-app scene-switch destination; the tour remains paused after every transition.
 
 | 1 · Castle of Veyra | 2 · Lumen Row village |
 | --- | --- |
@@ -55,6 +55,13 @@ npm run dev
 Create a production build with `npm run build`.
 
 Run the deterministic regression suite with `npm test`. It checks manifest repeatability, forked seed streams, twenty fixed seeds, castle-graph connectivity, dangling routes, finite terrain samples, and the ban on `Math.random()` inside generation code.
+
+## Validation evidence
+
+- Seven fixed scene destinations were browser-checked and captured from the current generator; Village, Forest, Tower, and Moving Stair use presentation-clearance camera contracts across twenty regression seeds.
+- Day/night transition, automatic orbit, mouse drag, and wheel zoom were exercised in the local WebGL experience. Touch handling shares the tested orbit rotation and zoom constraints and adds one-finger drag plus two-finger pinch input.
+- The automated suite contains 24 deterministic, lifecycle, shader, environment, camera, and presentation tests. Production build and lint complete without errors.
+- Medium quality stays within the Phase 1 draw-call budget in sampled views; the current local sample reports 146 draw calls, 55k triangles, and 70 geometries. Final 1080p FPS qualification remains hardware-dependent and should be measured on the intended GPU without browser-automation throttling.
 
 ## Implementation notes
 

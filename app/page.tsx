@@ -281,7 +281,7 @@ function createWorld(seedText: string, quality: QualityTier) {
       const distance = minimumDistance + random() * (maximumDistance - minimumDistance);
       x = Math.cos(angle) * distance;
       z = Math.sin(angle) * distance;
-      if ((x - 28) ** 2 + (z - 18) ** 2 >= 1050 && (x + 7) ** 2 + (z + 4) ** 2 >= 800) {
+      if ((x - 28) ** 2 + (z - 18) ** 2 >= 1050 && (x + 7) ** 2 + (z + 4) ** 2 >= 800 && (x + 31) ** 2 + (z - 13) ** 2 >= 676) {
         placementFound = true;
         break;
       }

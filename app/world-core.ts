@@ -54,7 +54,7 @@ export interface WorldValidationReport {
 export interface WorldManifest {
   seed: string;
   seedHash: number;
-  generatorVersion: '1.6.0';
+  generatorVersion: '1.7.0';
   manifestHash: string;
   quality: QualityTier;
   towerHeights: number[];
@@ -132,10 +132,10 @@ export function createWorldManifest(seedText: string, quality: QualityTier): Wor
   const seedHash = hashSeed(seed);
   const cameraLandmarks: WorldManifest['cameraLandmarks'] = [
     { id: 'castle', label: 'Castle of Veyra', subtitle: 'Central highlands', position: [34 + camera() * 5, 27 + camera() * 3, -44 + camera() * 5], target: [-7, 11, -4] },
-    { id: 'village', label: 'Lumen Row', subtitle: 'Village approach', position: [-57 + camera() * 5, 13 + camera() * 2, 34 + camera() * 4], target: [-31, 4, 13] },
+    { id: 'village', label: 'Lumen Row', subtitle: 'Village approach', position: [-60 + camera() * 4, 21 + camera() * 2, 10 + camera() * 3], target: [-31, 4, 13] },
     { id: 'lake', label: 'Mirror Mere', subtitle: 'Moonlit shoreline', position: [53 + camera() * 5, 10 + camera() * 2, 46 + camera() * 4], target: [28, -0.5, 18] },
-    { id: 'forest', label: 'The Thorn Veil', subtitle: 'Ancient forest edge', position: [34 + camera() * 6, 15 + camera() * 3, -55 + camera() * 5], target: [15, 4, -43] },
-    { id: 'tower', label: 'Astral Spire', subtitle: 'Upper observatory', position: [-24 + camera() * 4, 31 + camera() * 3, -15 + camera() * 4], target: [-7, 18, -4] },
+    { id: 'forest', label: 'The Thorn Veil', subtitle: 'Ancient forest edge', position: [49 + camera() * 5, 25 + camera() * 2, -61 + camera() * 4], target: [15, 5, -38] },
+    { id: 'tower', label: 'Astral Spire', subtitle: 'Upper observatory', position: [-39 + camera() * 4, 37 + camera() * 3, 11 + camera() * 3], target: [-9, 16, -3] },
   ].map((landmark) => ({
     ...landmark,
     position: [
@@ -148,7 +148,7 @@ export function createWorldManifest(seedText: string, quality: QualityTier): Wor
   const landmarkById = Object.fromEntries(cameraLandmarks.map((landmark) => [landmark.id, landmark])) as Record<WorldManifest['cameraLandmarks'][number]['id'], WorldManifest['cameraLandmarks'][number]>;
   const validationViews: ValidationView[] = [
     { id: 'castle-hero', label: 'Castle Hero', subtitle: 'Silhouette and warm windows', position: [...landmarkById.castle.position], target: [...landmarkById.castle.target] },
-    { id: 'courtyard-stair', label: 'Moving Stair', subtitle: 'Courtyard connection study', position: [-24 + validationCamera() * 3, 18 + validationCamera() * 2, 18 + validationCamera() * 3], target: [-5, 9, 3] },
+    { id: 'courtyard-stair', label: 'Moving Stair', subtitle: 'Courtyard connection study', position: [-29 + validationCamera() * 3, 28 + validationCamera() * 2, 34 + validationCamera() * 3], target: [2, 18, 3] },
     { id: 'village-approach', label: 'Village Approach', subtitle: 'Road and building alignment', position: [...landmarkById.village.position], target: [...landmarkById.village.target] },
     { id: 'forest-edge', label: 'Forest Edge', subtitle: 'Near and far vegetation', position: [...landmarkById.forest.position], target: [...landmarkById.forest.target] },
     { id: 'lake-shore', label: 'Lake Shore', subtitle: 'Water and shared boundary', position: [...landmarkById.lake.position], target: [...landmarkById.lake.target] },
@@ -210,7 +210,7 @@ export function createWorldManifest(seedText: string, quality: QualityTier): Wor
   const base = {
     seed,
     seedHash,
-    generatorVersion: '1.6.0' as const,
+    generatorVersion: '1.7.0' as const,
     quality,
     towerHeights,
     castleGraph,
