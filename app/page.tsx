@@ -7,6 +7,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { SSAOPass } from 'three/addons/postprocessing/SSAOPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { EnvironmentSystem, type TimeOfDay } from './environment-system';
 import { createRoofMaterial, createStoneMaterial, createTerrainMaterial, createWoodMaterial } from './procedural-materials';
 import { ResourceRegistry } from './resource-registry';
 import { createWorldManifest, hashSeed, mulberry32, terrainHeight, validateWorldManifest, type QualityTier, type WorldManifest } from './world-core';
@@ -14,7 +15,6 @@ import { createWorldManifest, hashSeed, mulberry32, terrainHeight, validateWorld
 const DEFAULT_SEED = 'MAGIC-001';
 type CameraMode = 'tour' | 'fly' | 'orbit';
 type LandmarkId = WorldManifest['cameraLandmarks'][number]['id'];
-type TimeOfDay = 'day' | 'night';
 type FixedView = WorldManifest['validationViews'][number];
 
 const SCENE_LABELS: Record<LandmarkId, string> = {
@@ -574,28 +574,7 @@ export default function Home() {
       return memory ? Math.round((memory.usedJSHeapSize / 1048576) * 10) / 10 : null;
     };
     const scene = new THREE.Scene();
-    const backgroundColor = new THREE.Color(0x05070d);
-    const nightSky = new THREE.Color(0x05070d);
-    const daySky = new THREE.Color(0x88b9d2);
-    const nightFog = new THREE.Color(0x090d15);
-    const dayFog = new THREE.Color(0x9fc1cc);
-    const nightHemi = new THREE.Color(0x5a6f9a);
-    const dayHemi = new THREE.Color(0xc9e1ea);
-    const nightGround = new THREE.Color(0x11100e);
-    const dayGround = new THREE.Color(0x667058);
-    const nightLight = new THREE.Color(0xb8c9ff);
-    const dayLight = new THREE.Color(0xffe0a8);
-    const nightOrb = new THREE.Color().setRGB(1.25, 1.4, 2.1);
-    const dayOrb = new THREE.Color().setRGB(4.2, 2.8, 1.25);
-    const nightWater = new THREE.Color(0xb9cbff);
-    const dayWater = new THREE.Color(0xffd69b);
-    const nightLightPosition = new THREE.Vector3(-35, 52, -25);
-    const dayLightPosition = new THREE.Vector3(42, 58, 24);
-    const nightOrbPosition = new THREE.Vector3(-52, 44, -62);
-    const dayOrbPosition = new THREE.Vector3(55, 52, 34);
-    scene.background = backgroundColor;
-    const atmosphericFog = new THREE.FogExp2(0x090d15, 0.012);
-    scene.fog = atmosphericFog;
+    const environment = new EnvironmentSystem(scene, timeOfDayRef.current);
     const camera = new THREE.PerspectiveCamera(48, mount.clientWidth / mount.clientHeight, 0.1, 350);
     const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     const renderScale = () => qualityRef.current === 'low' ? 1 : qualityRef.current === 'medium' ? 1.55 : 2;
@@ -622,17 +601,6 @@ export default function Home() {
     composer.addPass(ssaoPass);
     composer.addPass(bloomPass);
     composer.addPass(outputPass);
-
-    const hemisphere = new THREE.HemisphereLight(0x5a6f9a, 0x11100e, 1.3);
-    const moonLight = new THREE.DirectionalLight(0xb8c9ff, 3.2);
-    moonLight.position.set(-35, 52, -25);
-    moonLight.castShadow = true;
-    moonLight.shadow.mapSize.set(2048, 2048);
-    moonLight.shadow.camera.left = -70;
-    moonLight.shadow.camera.right = 70;
-    moonLight.shadow.camera.top = 70;
-    moonLight.shadow.camera.bottom = -70;
-    scene.add(hemisphere, moonLight);
 
     const initialGenerationStarted = performance.now();
     let world = createWorld(seedRef.current, qualityRef.current);
@@ -668,7 +636,6 @@ export default function Home() {
     let soakBaselineHeapMb: number | null = null;
     let soakFinalSampleFrames = 0;
     let contextAvailable = true;
-    let daylightBlend = timeOfDayRef.current === 'day' ? 1 : 0;
     let previousElapsed = 0;
     let framesSinceSample = 0;
     let sampleStarted = 0;
@@ -798,27 +765,19 @@ export default function Home() {
           setGenerationStatus('error');
         }
       }
-      scene.fog = fogRef.current ? atmosphericFog : null;
-      const daylightTarget = timeOfDayRef.current === 'day' ? 1 : 0;
-      daylightBlend = THREE.MathUtils.lerp(daylightBlend, daylightTarget, 1 - Math.exp(-delta * 2.4));
-      backgroundColor.lerpColors(nightSky, daySky, daylightBlend);
-      atmosphericFog.color.lerpColors(nightFog, dayFog, daylightBlend);
-      atmosphericFog.density = THREE.MathUtils.lerp(0.012, 0.0065, daylightBlend) * fogDensityRef.current;
-      hemisphere.color.lerpColors(nightHemi, dayHemi, daylightBlend);
-      hemisphere.groundColor.lerpColors(nightGround, dayGround, daylightBlend);
-      hemisphere.intensity = THREE.MathUtils.lerp(1.3, 2.45, daylightBlend);
-      moonLight.color.lerpColors(nightLight, dayLight, daylightBlend);
-      moonLight.intensity = THREE.MathUtils.lerp(3.2, 4.6, daylightBlend);
-      moonLight.position.lerpVectors(nightLightPosition, dayLightPosition, daylightBlend);
-      world.starMaterial.opacity = THREE.MathUtils.lerp(0.72, 0.025, daylightBlend);
-      world.celestialMaterial.color.lerpColors(nightOrb, dayOrb, daylightBlend);
-      world.celestialOrb.position.lerpVectors(nightOrbPosition, dayOrbPosition, daylightBlend);
-      world.waterMaterial.uniforms.uMoon.value.lerpColors(nightWater, dayWater, daylightBlend);
-      renderer.toneMappingExposure = THREE.MathUtils.lerp(postRef.current ? 1.05 : 0.82, postRef.current ? 1.16 : 1, daylightBlend);
-      bloomPass.strength = (qualityRef.current === 'low' ? 0.28 : qualityRef.current === 'medium' ? 0.48 : 0.62) * bloomStrengthRef.current;
+      const environmentFrame = environment.update(delta, {
+        timeOfDay: timeOfDayRef.current,
+        fogEnabled: fogRef.current,
+        fogDensity: fogDensityRef.current,
+        postEnabled: postRef.current,
+        bloomStrength: bloomStrengthRef.current,
+        shadowsEnabled: shadowsRef.current,
+        quality: qualityRef.current,
+      }, world);
+      renderer.toneMappingExposure = environmentFrame.toneMappingExposure;
+      bloomPass.strength = environmentFrame.bloomStrength;
       ssaoPass.enabled = postRef.current && aoRef.current && qualityRef.current !== 'low';
       renderer.shadowMap.enabled = shadowsRef.current;
-      moonLight.castShadow = shadowsRef.current;
       world.waterMaterial.uniforms.uTime.value = animationTime;
       world.waterMaterial.uniforms.uWaveStrength.value = waterMotionRef.current;
       world.magicMaterial.uniforms.uTime.value = animationTime;
@@ -990,6 +949,7 @@ export default function Home() {
       renderer.domElement.removeEventListener('webglcontextlost', onContextLost);
       renderer.domElement.removeEventListener('webglcontextrestored', onContextRestored);
       disposeObject(world.root);
+      environment.dispose();
       scene.clear();
       composer.dispose();
       renderer.dispose();
