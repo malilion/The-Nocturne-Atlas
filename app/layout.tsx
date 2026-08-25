@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://the-nocturne-atlas.sites.openai.com'),
+  metadataBase: new URL('https://malilion.github.io/The-Nocturne-Atlas/'),
   title: 'The Nocturne Atlas — Procedural Arcane Realms',
   description: 'Explore an original moonlit wizarding world generated from a single seed.',
   openGraph: {
