@@ -24,7 +24,9 @@ export function getStationCueFrequencies(step: StationQuestStep, seedHash: numbe
   const root = 196 + (seedHash % 7) * 7;
   if (step === 'decoded') return [root, root * 1.25];
   if (step === 'accepted') return [root, root * 1.2, root * 1.5];
-  if (step === 'complete') return [root, root * 1.25, root * 1.5, root * 2];
+  if (step === 'stamped') return [root, root * 1.25, root * 1.5, root * 1.75];
+  if (step === 'arrived') return [root * 1.25, root * 1.5, root * 2];
+  if (step === 'complete') return [root, root * 1.25, root * 1.5, root * 1.75, root * 2];
   return [];
 }
 

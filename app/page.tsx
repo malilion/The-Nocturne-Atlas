@@ -1379,10 +1379,12 @@ export default function Home() {
   const stationQuest = getStationQuest(manifest.seedHash);
   const stationQuestStep = stationQuestState.manifestHash === manifest.manifestHash ? stationQuestState.step : 'sealed';
   const stationQuestCopy = getStationQuestCopy(stationQuestStep, stationQuest);
+  const stationJourneyActive = stationQuestStep === 'stamped' || stationQuestStep === 'arrived' || stationQuestStep === 'complete';
   const progressStationQuest = () => {
     const nextStep = advanceStationQuest(stationQuestStep);
     setStationQuestState({ manifestHash: manifest.manifestHash, step: nextStep });
     audioSystemRef.current?.playStationCue(nextStep);
+    if (stationQuestStep === 'stamped') selectScene(stationQuest.landmarkId);
   };
 
   return (
@@ -1417,12 +1419,12 @@ export default function Home() {
         <div className="seed-meta"><span>Active · {activeSeed}</span><span><button onClick={randomSeed} disabled={rebuildLocked}>Randomize</button><i>·</i><button onClick={copySeed}>{copied ? 'Copied' : 'Copy seed'}</button></span></div>
         {generationError && <p className="generation-error" role="alert">The previous world remains active. {generationError}</p>}
       </section>
-      {entered && fixedView?.id === 'station-hall' && <aside className={`station-interaction is-${stationQuestStep}`} aria-live="polite">
-        <p>Veilcross quest · {stationQuestCopy.progress}</p>
-        <h2>The unlisted departure</h2>
+      {entered && (fixedView?.id === 'station-hall' || stationJourneyActive) && <aside className={`station-interaction is-${stationQuestStep}`} aria-live="polite">
+        <p>{stationJourneyActive ? 'Courier route' : 'Veilcross quest'} · {stationQuestCopy.progress}</p>
+        <h2>{stationJourneyActive ? 'Beyond the midnight line' : 'The unlisted departure'}</h2>
         <strong>{stationQuest.destination}</strong>
         <p>{stationQuestCopy.body}</p>
-        {stationQuestCopy.action ? <button type="button" onClick={progressStationQuest}>{stationQuestCopy.action}</button> : <span className="quest-complete">Passage authorized</span>}
+        {stationQuestCopy.action ? <button type="button" onClick={progressStationQuest}>{stationQuestCopy.action}</button> : <span className="quest-complete">Route complete</span>}
       </aside>}
       <aside className={`performance-hud ${hudOpen ? 'is-open' : ''}`} aria-hidden={!hudOpen}>
         <header><span>Field diagnostics</span><button onClick={() => setHudOpen(false)}>×</button></header>

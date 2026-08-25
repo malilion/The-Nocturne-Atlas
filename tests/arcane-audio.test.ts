@@ -19,7 +19,9 @@ test('station cues expand with quest progress and audio lifecycle is server-safe
   assert.deepEqual(getStationCueFrequencies('sealed', 42), []);
   assert.equal(getStationCueFrequencies('decoded', 42).length, 2);
   assert.equal(getStationCueFrequencies('accepted', 42).length, 3);
-  assert.equal(getStationCueFrequencies('complete', 42).length, 4);
+  assert.equal(getStationCueFrequencies('stamped', 42).length, 4);
+  assert.equal(getStationCueFrequencies('arrived', 42).length, 3);
+  assert.equal(getStationCueFrequencies('complete', 42).length, 5);
   assert.deepEqual(getStationCueFrequencies('complete', 42), getStationCueFrequencies('complete', 42));
 
   const audio = new ArcaneAudioSystem(42);
