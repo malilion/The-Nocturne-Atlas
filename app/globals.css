@@ -30,6 +30,7 @@ button { color: inherit; }
 .time-toggle { display: inline-flex; align-items: center; gap: 7px; height: 32px; border: 1px solid var(--line); border-radius: 999px; padding: 0 12px; background: rgba(6,10,14,.35); color: #aab1ad; cursor: pointer; font-size: 8px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
 .time-toggle span { font-size: 13px; line-height: 1; }
 .time-toggle.is-day { border-color: rgba(255,220,158,.36); background: rgba(117,86,38,.2); color: #ffe1aa; }
+.sound-toggle.is-on { border-color: rgba(132,188,162,.34); background: rgba(93,148,123,.14); color: #c5dfd0; }
 .hero-copy { position: absolute; z-index: 2; top: 18%; left: 7.5%; width: min(470px, 42vw); pointer-events: none; transition: opacity .55s ease, transform .65s cubic-bezier(.2,.8,.2,1), filter .55s ease; }
 .experience-shell.is-entered .hero-copy { opacity: 0; filter: blur(5px); transform: translateY(-24px); }
 .eyebrow { margin: 0 0 20px; color: #aab0ad; font-size: 9px; font-weight: 600; letter-spacing: .26em; text-transform: uppercase; }
