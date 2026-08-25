@@ -77,7 +77,7 @@ The same seed always recreates the same world. The HUD reports live frame rate a
 
 The Day/Night control transitions the complete lighting model: sky, fog, stars, celestial light, water highlights, fill light, exposure, and bloom. Night mode combines a moon key light, shadow-free cool fill, lifted hemispheric ambience, and shallower fog so silhouettes retain detail without losing their moonlit mood.
 
-The HUD includes Low, Medium, and High quality tiers, atmospheric fog, HDR Bloom and cinematic grading, optional SSAO on Medium/High, dynamic shadows, zone diagnostics, reduced motion, and a unified ambient-animation switch. Fog density, Bloom strength, and water motion are adjustable live. High quality supports 1,100 instanced trees, while deterministic near/far forest batches reduce distant geometry and shadow cost.
+The HUD includes Low, Medium, and High quality tiers, atmospheric fog, a master post-processing switch, independent color grade, HDR Bloom and vignette controls, FXAA, optional SSAO on Medium/High, dynamic shadows, zone diagnostics, reduced motion, and a unified ambient-animation switch. Fog density, Bloom strength, and water motion are adjustable live. High quality supports 1,100 instanced trees, while deterministic near/far forest batches reduce distant geometry and shadow cost.
 
 ### Local development
 
@@ -95,7 +95,8 @@ Create a production build with `npm run build`. Run the deterministic regression
 - Day/night transition, automatic orbit, mouse drag, and wheel zoom were exercised in the local WebGL experience. Touch input shares the tested orbit constraints and adds one-finger drag plus two-finger pinch.
 - All 33 deterministic, lifecycle, shader, environment, collision, camera, interior, and presentation tests pass. Coverage includes deterministic Great Hall furnishing, grounded movement, world/lake/castle/village collision, seeded detail profiles, night fill ownership, exposure, fog density, daylight transition, shadow toggles, landmark-relative orbit focus, drag-paused automatic rotation, and idempotent cleanup.
 - Production build and lint complete without errors. The build currently reports a non-blocking warning for the Three.js client chunk exceeding 500 kB after minification.
-- The generator `1.9.0` Medium-quality castle view reports 200 draw calls, 66k triangles, and 79 geometries at 1280×720, within the Phase 1 draw-call budget. The Great Hall view reports 129 draw calls and 60k triangles. Final 1080p FPS qualification remains hardware-dependent.
+- The generator `1.9.0` Medium-quality castle view reports 60 FPS, 189 draw calls, 66k triangles, 66 geometries, and 16 textures in the local Chromium/WebGL2 1920×1080 validation run. The Great Hall view reports 60 FPS, 129 draw calls, and 59k triangles. Cross-device FPS remains hardware-dependent.
+- The settled `20× rebuild audit` completed cleanly at 1920×1080: geometries remained `66→66`, while the available browser heap sample settled from `38.5→39.2 MB` after a three-second post-rebuild observation window.
 
 ### Implementation notes
 
@@ -105,7 +106,7 @@ Terrain, castle stone, slate roofs, tree trunks, and village timber use seed-awa
 
 Generator `1.8.0` adds a rendered gatehouse with an arched portal, instanced castle buttresses and battlements, seeded village chimneys, framed windows and hanging signs, plus leaning trunks and two-tier near-tree canopies. Detail profiles use isolated seed namespaces so silhouette changes do not cascade into unrelated systems. Village windows and trim are instanced in shared batches to keep added draw-call cost bounded.
 
-Generator `1.9.0` replaces the solid Great Hall mass with a hollow architectural shell while preserving its exterior roofline. Scene `8` presents a seeded interior with long tables, benches, dais, lectern, banners, glowing windows, rafters, twenty-four floating candles, and a bounded warm candle-light rig for readable night interiors. Repeated seeds reproduce the same candle layout.
+Generator `1.9.0` replaces the solid Great Hall mass with a hollow architectural shell while preserving its exterior roofline. Scene `8` presents a seeded interior with long tables, benches, dais, lectern, banners, glowing windows, rafters, twenty-four floating candles, and a bounded warm candle-light rig for readable night interiors. Repeated seeds reproduce the same candle layout. Fourteen tower windows now share one instanced batch, preserving the façade while bringing the complete 1080p castle view below the Phase 1 draw-call ceiling.
 
 Regeneration uses an atomic swap: a new world is constructed and validated before it replaces the active root. Shared resources are deduplicated through an idempotent registry before disposal. Failed generation leaves the existing world visible, while WebGL context restoration triggers a validated rebuild. The `20× rebuild audit` tracks GPU geometry and browser heap samples when heap telemetry is available.
 
@@ -146,7 +147,7 @@ This repository contains the complete Phase 1 vertical slice plus grounded colli
 
 日夜按鍵會完整轉換天空、霧、星光、天體光源、水面高光、補光、曝光與 Bloom。夜間使用月光主光源、無陰影冷色補光、提高的半球環境光與較淺的霧，讓城堡與地形輪廓更清楚，同時保留月夜氛圍。
 
-HUD 提供低、中、高三種實際畫質等級，以及大氣霧、HDR Bloom 與電影調色、中高畫質 SSAO、動態陰影、區域診斷、減少動態效果和環境動畫總開關。霧密度、Bloom 強度與水面動態可即時調整。高畫質最多支援 1,100 棵實例化樹木；森林則使用固定種子的近／遠景批次，降低遠距幾何與陰影成本。
+HUD 提供低、中、高三種實際畫質等級，以及大氣霧、後製總開關、可獨立切換的色彩分級、HDR Bloom 與 Vignette、FXAA、中高畫質 SSAO、動態陰影、區域診斷、減少動態效果和環境動畫總開關。霧密度、Bloom 強度與水面動態可即時調整。高畫質最多支援 1,100 棵實例化樹木；森林則使用固定種子的近／遠景批次，降低遠距幾何與陰影成本。
 
 ### 本機開發
 
@@ -164,7 +165,8 @@ npm run dev
 - 日夜切換、自動環繞、滑鼠拖曳與滾輪縮放已在本機 WebGL 場景操作驗證。觸控操作沿用相同環繞限制，並加入單指拖曳與雙指縮放。
 - 33 項固定性、生命週期、Shader、環境、碰撞、鏡頭、室內與場景呈現測試全數通過。涵蓋固定種子大廳陳設、貼地移動、世界／湖泊／城堡／村莊碰撞、種子化細節設定、夜間補光管理、曝光、霧密度、日夜轉換、陰影切換、地標中心環繞、拖曳暫停自轉與重複清理安全性。
 - 正式建置與 Lint 均無錯誤。目前僅有 Three.js 用戶端區塊壓縮後超過 500 kB 的非阻擋警告。
-- 生成器 `1.9.0` 的中等畫質城堡視角在 1280×720 下為 200 Draw Calls、66k 三角形與 79 個 Geometry，符合 Phase 1 的 Draw Call 預算；城堡大廳視角則為 129 Draw Calls 與 60k 三角形。最終 1080p FPS 仍需依實際硬體確認。
+- 生成器 `1.9.0` 的中等畫質城堡視角，在本機 Chromium／WebGL2、1920×1080 驗證中為 60 FPS、189 Draw Calls、66k 三角形、66 個 Geometry 與 16 個 Texture；城堡大廳視角則為 60 FPS、129 Draw Calls 與 59k 三角形。不同裝置的 FPS 仍取決於實際硬體。
+- 1920×1080 的 `20× rebuild audit` 已通過穩定驗證：Geometry 維持 `66→66`，瀏覽器可提供的 Heap 樣本在重建後三秒觀察窗中由 `38.5→39.2 MB`。
 
 ### 實作說明
 
@@ -174,7 +176,7 @@ npm run dev
 
 生成器 `1.8.0` 新增具有拱門入口的城門建築、實例化城堡扶壁與垛口、種子化村莊煙囪、窗框與懸掛招牌，以及傾斜樹幹和近景雙層樹冠。細節設定使用隔離的種子命名空間，輪廓變化不會連帶改變其他系統。村莊窗戶與飾條以共用 Instancing 批次繪製，使新增細節的 Draw Call 成本維持受控。
 
-生成器 `1.9.0` 將原本實心的城堡大廳改為中空建築外殼，同時保留外部屋頂輪廓。場景 `8` 會呈現具有長桌、長椅、講台、旗幟、發光窗戶、屋樑、二十四根漂浮蠟燭，以及範圍受限的暖色燭光補光；相同種子會重現相同的蠟燭配置。
+生成器 `1.9.0` 將原本實心的城堡大廳改為中空建築外殼，同時保留外部屋頂輪廓。場景 `8` 會呈現具有長桌、長椅、講台、旗幟、發光窗戶、屋樑、二十四根漂浮蠟燭，以及範圍受限的暖色燭光補光；相同種子會重現相同的蠟燭配置。十四扇塔樓窗戶現在共用單一 InstancedMesh 批次，在維持立面外觀的同時，讓完整 1080p 城堡視角低於 Phase 1 的 Draw Call 上限。
 
 世界重建採用原子交換：新世界完成建立與驗證後才取代目前場景。共用資源由可重複安全清理的 Registry 去重並釋放。生成失敗時舊世界仍可使用；WebGL Context 恢復後則會觸發已驗證的重建流程。`20× rebuild audit` 會記錄 GPU Geometry，以及瀏覽器提供 Heap Telemetry 時的記憶體樣本。
 

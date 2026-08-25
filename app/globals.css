@@ -10,7 +10,7 @@ button { color: inherit; }
 .world-canvas, .world-canvas canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
 .world-canvas:focus { outline: none; }
 .world-canvas canvas { filter: saturate(.82) contrast(1.04); }
-.world-canvas.no-post canvas { filter: none; }
+.world-canvas.no-grade canvas { filter: none; }
 .atmosphere { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(circle at 21% 24%, rgba(140, 160, 205, .11), transparent 27%), linear-gradient(90deg, rgba(4, 6, 10, .62) 0%, transparent 48%, rgba(3, 5, 8, .18) 100%), linear-gradient(0deg, rgba(3, 5, 8, .55) 0%, transparent 42%); transition: opacity .8s ease; }
 .experience-shell.is-entered .atmosphere { opacity: .56; }
 .experience-shell.is-day .atmosphere { opacity: .2; }
