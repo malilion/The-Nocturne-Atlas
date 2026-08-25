@@ -23,6 +23,7 @@ export class CameraManager {
   private readonly domElement: HTMLElement | null;
   private manifest: WorldManifest;
   private tourCurves: ReturnType<CameraManager['createTourCurves']>;
+  private landmarkProgress: number[] = [];
   private tourTime = 0;
   private lastTourIndex = -1;
   private tourHandoffStarted = -10;
@@ -67,12 +68,14 @@ export class CameraManager {
     this.domElement = domElement;
     this.manifest = manifest;
     this.tourCurves = this.createTourCurves(manifest);
+    this.landmarkProgress = this.computeLandmarkProgress(manifest, this.tourCurves);
     this.attachControls();
   }
 
   setManifest(manifest: WorldManifest) {
     this.manifest = manifest;
     this.tourCurves = this.createTourCurves(manifest);
+    this.landmarkProgress = this.computeLandmarkProgress(manifest, this.tourCurves);
     this.tourTime = 0;
     this.lastTourIndex = -1;
     this.lastFixedViewId = null;
@@ -233,22 +236,31 @@ export class CameraManager {
     this.focusTargetValid = true;
   }
 
-  private findLandmarkProgress(sceneIndex: number) {
-    const destination = this.manifest.cameraLandmarks[sceneIndex].position;
-    const destinationVector = new THREE.Vector3(...destination);
+  // Sampling the curve to find each landmark's tour progress is expensive
+  // (513 arc-length-parametrized lookups). Landmarks and the tour curve are
+  // fixed for a world's lifetime, so this runs once per world instead of on
+  // every scene-select click, keeping scene switches from hitching.
+  private computeLandmarkProgress(manifest: WorldManifest, curves: ReturnType<CameraManager['createTourCurves']>) {
     const sample = new THREE.Vector3();
-    let closestProgress = sceneIndex / this.manifest.cameraLandmarks.length;
-    let closestDistance = Number.POSITIVE_INFINITY;
-    for (let index = 0; index <= 512; index += 1) {
-      const progress = index / 512;
-      this.tourCurves.positions.getPointAt(progress, sample);
-      const distance = sample.distanceToSquared(destinationVector);
-      if (distance < closestDistance) {
-        closestDistance = distance;
-        closestProgress = progress;
+    return manifest.cameraLandmarks.map((landmark, sceneIndex) => {
+      const destinationVector = new THREE.Vector3(...landmark.position);
+      let closestProgress = sceneIndex / manifest.cameraLandmarks.length;
+      let closestDistance = Number.POSITIVE_INFINITY;
+      for (let index = 0; index <= 512; index += 1) {
+        const progress = index / 512;
+        curves.positions.getPointAt(progress, sample);
+        const distance = sample.distanceToSquared(destinationVector);
+        if (distance < closestDistance) {
+          closestDistance = distance;
+          closestProgress = progress;
+        }
       }
-    }
-    return closestProgress;
+      return closestProgress;
+    });
+  }
+
+  private findLandmarkProgress(sceneIndex: number) {
+    return this.landmarkProgress[sceneIndex];
   }
 
   private updateFly(delta: number, seed: string) {
