@@ -8,6 +8,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { SSAOPass } from 'three/addons/postprocessing/SSAOPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { createRoofMaterial, createStoneMaterial, createTerrainMaterial, createWoodMaterial } from './procedural-materials';
+import { ResourceRegistry } from './resource-registry';
 import { createWorldManifest, hashSeed, mulberry32, terrainHeight, validateWorldManifest, type QualityTier, type WorldManifest } from './world-core';
 
 const DEFAULT_SEED = 'MAGIC-001';
@@ -49,17 +50,15 @@ interface SoakAudit {
 }
 
 function disposeObject(root: THREE.Object3D) {
-  const geometries = new Set<THREE.BufferGeometry>();
-  const materials = new Set<THREE.Material>();
+  const resources = new ResourceRegistry();
   root.traverse((object) => {
     const mesh = object as THREE.Mesh;
-    if (mesh.geometry) geometries.add(mesh.geometry);
+    if (mesh.geometry) resources.own(mesh.geometry, 'geometries');
     const meshMaterials = Array.isArray(mesh.material) ? mesh.material : mesh.material ? [mesh.material] : [];
-    meshMaterials.forEach((material) => materials.add(material));
+    meshMaterials.forEach((material) => resources.own(material, 'materials'));
   });
-  geometries.forEach((geometry) => geometry.dispose());
-  materials.forEach((material) => material.dispose());
-  return { geometries: geometries.size, materials: materials.size };
+  const report = resources.dispose();
+  return { geometries: report.byCategory.geometries ?? 0, materials: report.byCategory.materials ?? 0 };
 }
 
 function createWorld(seedText: string, quality: QualityTier) {
