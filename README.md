@@ -40,12 +40,12 @@ Terrain, castle stone, slate roofs, tree trunks, and village timber use seed-awa
 
 The lake, shoreline rocks, reeds, and island share a single deterministic boundary. The water shader includes analytic waves, depth-to-shore color, Fresnel response, moon highlights, and a restrained shoreline foam band. Water motion is adjustable live from the HUD, while shore ecology density follows the selected quality tier.
 
-World regeneration uses an atomic swap: a new world is constructed and validated before replacing the active root. If generation fails, the existing world remains visible and usable.
+World regeneration uses an atomic swap: a new world is constructed and validated before replacing the active root. Shared geometry and material ownership is deduplicated through an idempotent resource registry before disposal. If generation fails, the existing world remains visible and usable.
 
 WebGL context loss pauses rendering and surfaces a recoverable status; context restoration triggers a validated atomic rebuild. The rebuild audit records both GPU geometry and browser heap samples when the runtime exposes heap telemetry.
 
 The castle manifest is a connected topology of towers, hall, courtyard, gate, corridors, bridges, and one moving-stair route. Runtime validation rejects missing endpoints, disconnected nodes, unsafe camera landmarks, invalid zone boundaries, or mismatched procedural counts. The staircase rotates between two physical landing platforms with quaternion interpolation.
 
-The cinematic camera follows seed-aware Catmull–Rom position and look-target curves through five terrain-safe landmarks: castle, village, lake, forest, and tower detail. Returning from Free Fly or Orbit uses a smooth handoff from the current view. A reduced-motion option slows the tour and lengthens the handoff.
+The cinematic camera follows seed-aware Catmull–Rom position and look-target curves through five terrain-safe landmarks: castle, village, lake, forest, and tower detail. Validation samples every segment of the closed tour across twenty regression seeds and requires terrain clearance along the route, not only at its control points. Returning from Free Fly or Orbit uses a smooth handoff from the current view. A reduced-motion option slows the tour and lengthens the handoff.
 
 This is a polished Phase 1 vertical slice. Collision, interiors, NPCs, quests, audio, and world streaming are intentionally outside its scope.

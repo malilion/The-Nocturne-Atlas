@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
-import { createWorldManifest, hashSeed, seededStream, terrainHeight, validateWorldManifest } from '../app/world-core.ts';
+import { createWorldManifest, hashSeed, sampleClosedTourPosition, seededStream, terrainHeight, validateWorldManifest } from '../app/world-core.ts';
 
 test('same seed and quality produce an identical manifest', () => {
   const first = createWorldManifest('MAGIC-001', 'medium');
@@ -66,6 +66,20 @@ test('camera landmarks are deterministic, complete, and terrain-safe', () => {
     assert.ok(landmark.position.every(Number.isFinite));
     const terrain = terrainHeight(landmark.position[0], landmark.position[2], manifest.seedHash);
     assert.ok(landmark.position[1] >= terrain + 6.9);
+  }
+});
+
+test('closed cinematic tour samples stay finite and above terrain', () => {
+  for (let seedIndex = 1; seedIndex <= 20; seedIndex += 1) {
+    const manifest = createWorldManifest(`MAGIC-${String(seedIndex).padStart(3, '0')}`, 'medium');
+    for (let segment = 0; segment < manifest.cameraLandmarks.length; segment += 1) {
+      for (let step = 0; step <= 16; step += 1) {
+        const position = sampleClosedTourPosition(manifest.cameraLandmarks, segment, step / 16);
+        const ground = terrainHeight(position[0], position[2], manifest.seedHash);
+        assert.ok(position.every(Number.isFinite));
+        assert.ok(position[1] >= ground + 4);
+      }
+    }
   }
 });
 

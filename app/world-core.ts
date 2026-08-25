@@ -157,6 +157,27 @@ export function createWorldManifest(seedText: string, quality: QualityTier): Wor
   return { ...base, manifestHash: digestManifest(base) };
 }
 
+function catmullRomComponent(p0: number, p1: number, p2: number, p3: number, t: number) {
+  const t2 = t * t;
+  const t3 = t2 * t;
+  return 0.5 * ((2 * p1) + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 + (-p0 + 3 * p1 - 3 * p2 + p3) * t3);
+}
+
+export function sampleClosedTourPosition(landmarks: WorldManifest['cameraLandmarks'], segment: number, t: number): [number, number, number] {
+  const count = landmarks.length;
+  if (count < 4) throw new Error('A closed camera tour requires at least four landmarks.');
+  const point = (offset: number) => landmarks[(segment + offset + count) % count].position;
+  const p0 = point(-1);
+  const p1 = point(0);
+  const p2 = point(1);
+  const p3 = point(2);
+  return [
+    catmullRomComponent(p0[0], p1[0], p2[0], p3[0], t),
+    catmullRomComponent(p0[1], p1[1], p2[1], p3[1], t),
+    catmullRomComponent(p0[2], p1[2], p2[2], p3[2], t),
+  ];
+}
+
 export function validateWorldManifest(manifest: WorldManifest): WorldValidationReport {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -210,6 +231,18 @@ export function validateWorldManifest(manifest: WorldManifest): WorldValidationR
     if (![...landmark.position, ...landmark.target].every(Number.isFinite)) errors.push(`Invalid camera landmark: ${landmark.id}`);
     const ground = terrainHeight(landmark.position[0], landmark.position[2], manifest.seedHash);
     if (landmark.position[1] < ground + 6.8) errors.push(`Camera landmark intersects terrain: ${landmark.id}`);
+  }
+  if (manifest.cameraLandmarks.length >= 4) {
+    for (let segment = 0; segment < manifest.cameraLandmarks.length; segment += 1) {
+      for (let step = 0; step <= 16; step += 1) {
+        const position = sampleClosedTourPosition(manifest.cameraLandmarks, segment, step / 16);
+        const ground = terrainHeight(position[0], position[2], manifest.seedHash);
+        if (!position.every(Number.isFinite) || position[1] < ground + 4) {
+          errors.push(`Camera tour segment ${segment} approaches terrain (${position[1].toFixed(2)}m camera / ${ground.toFixed(2)}m ground).`);
+          break;
+        }
+      }
+    }
   }
   for (const [name, count] of Object.entries(manifest.counts)) {
     if (!Number.isInteger(count) || count <= 0) errors.push(`Invalid ${name} count: ${count}`);
