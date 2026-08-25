@@ -62,14 +62,14 @@ The paired night and daylight galleries were captured from the deterministic `MA
 - `R` — generate a new seed
 - `Esc` — release the pointer in Walk or Free Fly mode
 - `Space` — pause or resume the cinematic tour
-- `1`–`5` — jump to Castle, Village, Lake, Forest, or Tower
-- `6` / `7` — open the Courtyard Stair or Aerial fixed view
-- `8` — enter the seeded Great Hall interior
+- `1`–`8` — jump to Castle, Village, Lake, Forest, Tower, Mountains, Ruins, or Station
+- `9` / `0` — open the Courtyard Stair or Aerial fixed view
+- `H` — enter the seeded Great Hall interior
 - `N` — switch between day and night
 
 Walk mode keeps the camera at eye height over procedural terrain and applies collision against world bounds, the lake, castle towers, hall and gatehouse, and every rotated village footprint. Blocked diagonal movement attempts an axis slide so the player can move naturally along walls. Orbit mode supports mouse drag and wheel zoom on desktop, plus one-finger drag and two-finger pinch zoom on touch screens. It focuses on the most recently presented landmark instead of jumping to a fixed world center. Automatic rotation pauses while dragging and resumes on release; manual zoom remains available throughout.
 
-`Enter realm` starts the experience, collapses the landing panel, and parks the camera on the castle. Use `Resume` or `Space` to begin the tour. The scene switcher provides direct buttons for the castle, village, lake, forest, tower, courtyard staircase, aerial survey, and Great Hall. Every transition stops at its destination until the tour is explicitly resumed.
+`Enter realm` starts the experience, collapses the landing panel, and parks the camera on the castle. Use `Resume` or `Space` to begin the tour. The scene switcher provides direct buttons for eight world landmarks plus the courtyard staircase, aerial survey, and Great Hall fixed views. Every transition stops at its destination until the tour is explicitly resumed.
 
 The same seed always recreates the same world. The HUD reports live frame rate and frame time, draw calls, triangles, GPU resource ownership, generation time, optional JavaScript heap data, and resources released by the latest rebuild. Seed, Randomize, and quality controls lock while a build or rebuild audit is active, preventing overlapping UI mutations.
 
@@ -93,7 +93,7 @@ Create a production build with `npm run build`. Run the deterministic regression
 - All eight fixed destinations were browser-checked in both night and daylight modes and recaptured from generator `1.9.0` at 1280×720, producing sixteen gallery images.
 - Village, Forest, Tower, and Moving Stair cameras satisfy presentation-clearance contracts across twenty regression seeds.
 - Day/night transition, automatic orbit, mouse drag, and wheel zoom were exercised in the local WebGL experience. Touch input shares the tested orbit constraints and adds one-finger drag plus two-finger pinch.
-- All 45 deterministic, lifecycle, shader, environment, collision, camera, interior, embellishment, incremental-generation, rebuild-coordination, and presentation tests pass. Coverage includes cooperative chunk scheduling, mid-build cancellation and cleanup, seeded visual embellishments and quality scaling, metal/glass shader behavior, latest-request-wins coalescing, deterministic Great Hall furnishing, grounded movement, world/lake/castle/village/landmark collision, seeded detail profiles, night fill ownership, exposure, fog density, daylight transition, shadow toggles, landmark-relative orbit focus, drag-paused automatic rotation, and idempotent cleanup.
+- All 49 deterministic, lifecycle, shader, environment, collision, camera, interior, region-topology, embellishment, incremental-generation, rebuild-coordination, and presentation tests pass. Coverage includes cooperative chunk scheduling, mid-build cancellation and cleanup, seeded mountains/ruins/station generation, seeded visual embellishments and quality scaling, metal/glass shader behavior, latest-request-wins coalescing, deterministic Great Hall furnishing, grounded movement, world/lake/castle/village/landmark collision, seeded detail profiles, night fill ownership, exposure, fog density, daylight transition, shadow toggles, landmark-relative orbit focus, drag-paused automatic rotation, and idempotent cleanup.
 - Production build and lint complete without errors. The build currently reports a non-blocking warning for the Three.js client chunk exceeding 500 kB after minification.
 - The generator `1.9.0` Medium-quality castle view reports 60 FPS, 189 draw calls, 66k triangles, 66 geometries, and 16 textures in the local Chromium/WebGL2 1920×1080 validation run. The Great Hall view reports 60 FPS, 129 draw calls, and 59k triangles. Cross-device FPS remains hardware-dependent.
 - The settled `20× rebuild audit` completed cleanly at 1920×1080: geometries remained `66→66`, while the available browser heap sample settled from `38.5→39.2 MB` after a three-second post-rebuild observation window.
@@ -109,6 +109,8 @@ Generator `1.8.0` adds a rendered gatehouse with an arched portal, instanced cas
 Generator `1.9.0` replaces the solid Great Hall mass with a hollow architectural shell while preserving its exterior roofline. Scene `8` presents a seeded interior with long tables, benches, dais, lectern, banners, glowing windows, rafters, twenty-four floating candles, and a bounded warm candle-light rig for readable night interiors. Repeated seeds reproduce the same candle layout. Fourteen tower windows now share one instanced batch, preserving the façade while bringing the complete 1080p castle view below the Phase 1 draw-call ceiling.
 
 Generator `2.0.0` adds a seeded visual-embellishment layer without changing the established world topology. The castle gains a library wing, balcony, courtyard arcade, supported bridge silhouette, and a distinct metal observatory roof. Lumen Row gains a tavern, shop, market square, fountain, lamps, fencing, and cobbled alleys. The Thorn Veil gains exposed roots, fallen timber, mushrooms, a waystone ruin, and localized mist. Procedural cloud banks, four world-rune sites, orbiting books, and traveling lanterns animate across the wider scene. New seeded metal and transmissive leaded-glass materials are shared across these additions, and the largest repeated details remain instanced by quality tier.
+
+Generator `2.1.0` promotes the remaining PRD placeholders into first-class world regions. The seeded Umbravale Range forms a layered northern skyline and monumental pass; Orison Ruins provides a complete column circle, standing arches, rubble field, dais, and glass memory monolith; Veilcross Station includes a terminal hall, clock tower, platform, rails, sleepers, glass canopy, and moving arcane railcar. All three regions have manifest zones, cinematic-tour destinations, direct scene controls, quality-scaled instancing, and grounded collision ownership where appropriate.
 
 Regeneration uses an atomic, latest-request-wins pipeline. World construction is split into deterministic chunks that yield after a browser paint opportunity, so the active world keeps rendering and superseded tickets can be canceled through `AbortController` while generation is still in progress. Partially built roots own their resources from the first cancellable boundary and dispose them automatically on cancellation. A new world is fully constructed and validated before it replaces the active root. Shared resources are deduplicated through an idempotent registry before disposal. Failed generation leaves the existing world visible, while WebGL context restoration triggers a validated rebuild. The `20× rebuild audit` tracks GPU geometry and browser heap samples when heap telemetry is available. The latest coordinator validation completed cleanly at `65→65` geometries with the available heap sample settling from `36.9→34.7 MB`.
 
@@ -134,14 +136,14 @@ This repository contains the complete Phase 1 vertical slice plus grounded colli
 - `R` — 產生新的隨機種子
 - `Esc` — 在地面行走或自由飛行模式解除滑鼠鎖定
 - `Space` — 暫停或繼續電影式導覽
-- `1`–`5` — 直接切換至城堡、村莊、湖泊、森林或高塔
-- `6` / `7` — 切換至中庭階梯或空中勘察固定視角
-- `8` — 進入種子化城堡大廳室內場景
+- `1`–`8` — 直接切換至城堡、村莊、湖泊、森林、高塔、山脈、遺跡或車站
+- `9` / `0` — 切換至中庭階梯或空中勘察固定視角
+- `H` — 進入種子化城堡大廳室內場景
 - `N` — 切換白天與夜晚
 
 地面行走模式會讓鏡頭保持在程序地形上的視線高度，並對世界邊界、湖泊、城堡塔樓、大廳、城門，以及每棟旋轉過的村屋套用碰撞。斜向移動受阻時會嘗試沿單一軸向滑動，讓貼牆行走更自然。環繞模式在桌面支援滑鼠拖曳與滾輪縮放，在觸控裝置支援單指拖曳與雙指縮放。進入環繞模式時會以最近瀏覽的地標為中心，不會跳回固定的世界中心。拖曳期間自動旋轉會暫停，放開後自然恢復，過程中仍可隨時縮放。
 
-按下 `Enter realm` 會進入世界、收合起始面板，並將鏡頭停在城堡。使用 `Resume` 或 `Space` 才會開始導覽。場景切換列提供城堡、村莊、湖泊、森林、高塔、中庭階梯、空中勘察與城堡大廳按鍵；每次轉場抵達後都會停住，直到使用者主動恢復導覽。
+按下 `Enter realm` 會進入世界、收合起始面板，並將鏡頭停在城堡。使用 `Resume` 或 `Space` 才會開始導覽。場景切換列提供八個世界地標，以及中庭階梯、空中勘察與城堡大廳固定視角；每次轉場抵達後都會停住，直到使用者主動恢復導覽。
 
 輸入相同種子一定會重建出相同世界。HUD 會顯示即時幀率、幀時間、Draw Calls、三角形數量、GPU 資源、生成時間、瀏覽器支援時的 JavaScript Heap，以及上一次重建所釋放的資源。世界建立或重建稽核進行時，Seed、Randomize 與畫質控制會暫時鎖定，避免 UI 操作重疊修改狀態。
 
@@ -181,6 +183,8 @@ npm run dev
 生成器 `1.9.0` 將原本實心的城堡大廳改為中空建築外殼，同時保留外部屋頂輪廓。場景 `8` 會呈現具有長桌、長椅、講台、旗幟、發光窗戶、屋樑、二十四根漂浮蠟燭，以及範圍受限的暖色燭光補光；相同種子會重現相同的蠟燭配置。十四扇塔樓窗戶現在共用單一 InstancedMesh 批次，在維持立面外觀的同時，讓完整 1080p 城堡視角低於 Phase 1 的 Draw Call 上限。
 
 生成器 `2.0.0` 在不改動既有世界拓樸的前提下加入種子化視覺深化層。城堡新增圖書館側翼、陽台、庭院拱廊、橋梁支撐輪廓與獨立的金屬觀測屋頂；Lumen Row 新增酒館、商店、市集廣場、噴泉、路燈、柵欄與石巷；The Thorn Veil 新增裸露樹根、倒木、蘑菇、路標遺跡與局部霧區。世界環境也加入程序化雲層、四處場景符文、環繞圖書館的漂浮書籍，以及穿越場景的移動燈籠。新的種子化金屬與透射鉛框玻璃材質會由這些物件共用，大量重複細節則依畫質層級維持 Instancing。
+
+生成器 `2.1.0` 將剩餘的 PRD 預留方向提升為正式世界區域。種子化 Umbravale Range 形成多層北方天際線與巨型山口；Orison Ruins 包含完整柱陣、殘存拱門、碎石場、中央高台與玻璃記憶巨石；Veilcross Station 則包含站房、鐘塔、月台、軌道、枕木、玻璃雨棚與移動魔法車廂。三個區域都具備 Manifest Zone、電影導覽目的地、直接場景切換、依畫質調整的 Instancing，以及適用處的地面碰撞。
 
 世界重建採用原子化、最新請求優先的流程。世界建立已拆成決定性的分段工作，每段都會在瀏覽器完成一次繪製後讓出主執行緒，因此舊世界能持續顯示，已被取代的 Ticket 也能在生成途中透過 `AbortController` 真正取消。半成品從第一個可取消邊界起便由暫存 Root 持有資源，取消時會自動清理。新世界完成建立與驗證後才取代目前場景；共用資源由可重複安全清理的 Registry 去重並釋放。生成失敗時舊世界仍可使用；WebGL Context 恢復後則會觸發已驗證的重建流程。`20× rebuild audit` 會記錄 GPU Geometry，以及瀏覽器提供 Heap Telemetry 時的記憶體樣本。最新一次協調器驗證維持 `65→65` 個 Geometry，Heap 樣本由 `36.9→34.7 MB`。
 

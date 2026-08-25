@@ -9,10 +9,12 @@ const EMBELLISHMENT_BUILDINGS = [
   { position: [-24.5, -7] as [number, number], width: 11, depth: 6.2, rotation: 0 },
   { position: [-48.5, 22.2] as [number, number], width: 7.6, depth: 5.2, rotation: -0.14 },
   { position: [-17.5, 6.2] as [number, number], width: 6.2, depth: 5.2, rotation: -0.1 },
+  { position: [-53, -33] as [number, number], width: 14, depth: 8, rotation: 0 },
 ];
 const EMBELLISHMENT_CIRCLES = [
   { x: -31, z: 13, radius: 1.9 },
   { x: 18, z: -43, radius: 3.4 },
+  { x: 50, z: -28, radius: 4.8 },
 ];
 
 export interface WalkPoint {

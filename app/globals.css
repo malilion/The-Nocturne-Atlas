@@ -85,7 +85,8 @@ button { color: inherit; }
 .water-control output { color: #b7bfbb; font-family: 'Courier New', monospace; }
 .water-control input { appearance: none; width: 100%; height: 3px; border-radius: 999px; outline: none; background: linear-gradient(90deg, #668b88 0%, #668b88 62.5%, #222b2d 62.5%, #222b2d 100%); cursor: pointer; }
 .water-control input::-webkit-slider-thumb { appearance: none; width: 12px; height: 12px; border: 2px solid #0b1115; border-radius: 50%; background: #c4d1cc; box-shadow: 0 0 0 1px rgba(196,209,204,.28); }
-.scene-switcher { position: absolute; z-index: 3; left: 50%; bottom: 96px; display: flex; align-items: center; gap: 3px; max-width: calc(100vw - 30px); padding: 4px; border: 1px solid rgba(236,232,220,.15); border-radius: 999px; background: rgba(5,9,13,.68); box-shadow: 0 12px 40px rgba(0,0,0,.2); backdrop-filter: blur(13px); transform: translateX(-50%); }
+.scene-switcher { position: absolute; z-index: 3; left: 50%; bottom: 96px; display: flex; align-items: center; gap: 3px; max-width: calc(100vw - 30px); overflow-x: auto; padding: 4px; border: 1px solid rgba(236,232,220,.15); border-radius: 999px; background: rgba(5,9,13,.68); box-shadow: 0 12px 40px rgba(0,0,0,.2); scrollbar-width: none; backdrop-filter: blur(13px); transform: translateX(-50%); }
+.scene-switcher::-webkit-scrollbar { display: none; }
 .scene-switcher > span { padding: 0 9px; color: #707975; font-size: 7px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; white-space: nowrap; }
 .scene-switcher button { height: 30px; border: 0; border-radius: 999px; padding: 0 11px; background: transparent; color: #7f8884; cursor: pointer; font-size: 8px; letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; transition: color .2s, background .2s; }
 .scene-switcher button:hover { color: #d1d6d2; }

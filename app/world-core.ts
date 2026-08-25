@@ -1,4 +1,5 @@
 export type QualityTier = 'low' | 'medium' | 'high';
+export type WorldZoneType = 'castle' | 'village' | 'forest' | 'lake' | 'mountains' | 'ruins' | 'station';
 
 export interface WorldCounts {
   towers: number;
@@ -54,7 +55,7 @@ export interface WorldValidationReport {
 export interface WorldManifest {
   seed: string;
   seedHash: number;
-  generatorVersion: '2.0.0';
+  generatorVersion: '2.1.0';
   manifestHash: string;
   quality: QualityTier;
   towerHeights: number[];
@@ -71,13 +72,13 @@ export interface WorldManifest {
   villageBuildings: VillageBuildingPlan[];
   validationViews: ValidationView[];
   cameraLandmarks: Array<{
-    id: 'castle' | 'village' | 'lake' | 'forest' | 'tower';
+    id: 'castle' | 'village' | 'lake' | 'forest' | 'tower' | 'mountains' | 'ruins' | 'station';
     label: string;
     subtitle: string;
     position: [number, number, number];
     target: [number, number, number];
   }>;
-  zones: Array<{ id: string; type: 'castle' | 'village' | 'forest' | 'lake'; center: [number, number]; radius: number }>;
+  zones: Array<{ id: string; type: WorldZoneType; center: [number, number]; radius: number }>;
 }
 
 export const QUALITY_COUNTS: Record<QualityTier, WorldCounts> = {
@@ -136,6 +137,9 @@ export function createWorldManifest(seedText: string, quality: QualityTier): Wor
     { id: 'lake', label: 'Mirror Mere', subtitle: 'Moonlit shoreline', position: [53 + camera() * 5, 10 + camera() * 2, 46 + camera() * 4], target: [28, -0.5, 18] },
     { id: 'forest', label: 'The Thorn Veil', subtitle: 'Ancient forest edge', position: [49 + camera() * 5, 25 + camera() * 2, -61 + camera() * 4], target: [15, 5, -38] },
     { id: 'tower', label: 'Astral Spire', subtitle: 'Upper observatory', position: [-39 + camera() * 4, 37 + camera() * 3, 11 + camera() * 3], target: [-9, 16, -3] },
+    { id: 'mountains', label: 'Umbravale Range', subtitle: 'The northern pass', position: [8 + camera() * 4, 31 + camera() * 4, -33 + camera() * 3], target: [-5, 12, -65] },
+    { id: 'ruins', label: 'Orison Ruins', subtitle: 'Memory of the first circle', position: [62 + camera() * 3, 20 + camera() * 3, -7 + camera() * 3], target: [50, 3, -28] },
+    { id: 'station', label: 'Veilcross Station', subtitle: 'Midnight departures', position: [-34 + camera() * 3, 17 + camera() * 3, -15 + camera() * 3], target: [-53, 5, -33] },
   ].map((landmark) => ({
     ...landmark,
     position: [
@@ -212,7 +216,7 @@ export function createWorldManifest(seedText: string, quality: QualityTier): Wor
   const base = {
     seed,
     seedHash,
-    generatorVersion: '2.0.0' as const,
+    generatorVersion: '2.1.0' as const,
     quality,
     towerHeights,
     castleGraph,
@@ -226,6 +230,9 @@ export function createWorldManifest(seedText: string, quality: QualityTier): Wor
       { id: 'lumen-row', type: 'village' as const, center: [-31, 13] as [number, number], radius: 24 },
       { id: 'thorn-veil', type: 'forest' as const, center: [0, 0] as [number, number], radius: 72 },
       { id: 'mirror-mere', type: 'lake' as const, center: [28, 18] as [number, number], radius: 26 },
+      { id: 'umbravale-range', type: 'mountains' as const, center: [0, -66] as [number, number], radius: 36 },
+      { id: 'orison-ruins', type: 'ruins' as const, center: [50, -28] as [number, number], radius: 14 },
+      { id: 'veilcross-station', type: 'station' as const, center: [-53, -33] as [number, number], radius: 16 },
     ],
   };
   return { ...base, manifestHash: digestManifest(base) };
@@ -332,7 +339,10 @@ export function validateWorldManifest(manifest: WorldManifest): WorldValidationR
     zoneIds.add(zone.id);
     if (![...zone.center, zone.radius].every(Number.isFinite) || zone.radius <= 0) errors.push(`Invalid world zone: ${zone.id}`);
   }
-  if (!manifest.zones.some((zone) => zone.type === 'lake')) errors.push('World has no lake boundary.');
+  const requiredZoneTypes: WorldZoneType[] = ['castle', 'village', 'forest', 'lake', 'mountains', 'ruins', 'station'];
+  for (const type of requiredZoneTypes) {
+    if (!manifest.zones.some((zone) => zone.type === type)) errors.push(`World has no ${type} zone.`);
+  }
 
   for (const landmark of manifest.cameraLandmarks) {
     if (![...landmark.position, ...landmark.target].every(Number.isFinite)) errors.push(`Invalid camera landmark: ${landmark.id}`);

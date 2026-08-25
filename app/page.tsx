@@ -19,7 +19,8 @@ import { createGlassMaterial, createMetalMaterial, createRoofMaterial, createSto
 import { RebuildCoordinator } from './rebuild-coordinator';
 import { ResourceRegistry } from './resource-registry';
 import { createAmbientEmbellishments, createCastleEmbellishments, createForestEmbellishments, createVillageEmbellishments } from './world-embellishments';
-import { createWorldManifest, hashSeed, mulberry32, terrainHeight, validateWorldManifest, type QualityTier, type WorldManifest } from './world-core';
+import { createWorldManifest, hashSeed, mulberry32, terrainHeight, validateWorldManifest, type QualityTier, type WorldManifest, type WorldZoneType } from './world-core';
+import { createWorldRegions } from './world-regions';
 
 const DEFAULT_SEED = 'MAGIC-001';
 const SCENE_LABELS: Record<LandmarkId, string> = {
@@ -28,11 +29,19 @@ const SCENE_LABELS: Record<LandmarkId, string> = {
   lake: 'Lake',
   forest: 'Forest',
   tower: 'Tower',
+  mountains: 'Range',
+  ruins: 'Ruins',
+  station: 'Station',
 };
 const FIXED_SCENE_LABELS: Partial<Record<FixedView['id'], string>> = {
   'courtyard-stair': 'Stairs',
   'aerial-orbit': 'Aerial',
   'great-hall': 'Hall',
+};
+const FIXED_SCENE_SHORTCUTS: Partial<Record<FixedView['id'], string>> = {
+  'courtyard-stair': '9',
+  'aerial-orbit': '0',
+  'great-hall': 'H',
 };
 
 interface PerformanceStats {
@@ -87,6 +96,8 @@ interface GeneratedWorld {
   runeRoot: THREE.Group;
   floatingBookRoot: THREE.Group;
   movingLanternRoot: THREE.Group;
+  stationClockHands: THREE.Group;
+  railcarRoot: THREE.Group;
   manifest: WorldManifest;
   validation: ReturnType<typeof validateWorldManifest>;
 }
@@ -702,7 +713,7 @@ function* createWorldChunks(seedText: string, quality: QualityTier): Generator<v
 
   const zoneDebug = new THREE.Group();
   zoneDebug.name = 'zone-debug';
-  const zoneColors = { castle: 0xe6b45f, village: 0xd78865, forest: 0x67ae88, lake: 0x65a7d7 };
+  const zoneColors: Record<WorldZoneType, number> = { castle: 0xe6b45f, village: 0xd78865, forest: 0x67ae88, lake: 0x65a7d7, mountains: 0xa7b0b8, ruins: 0x9b80c7, station: 0xd6a05f };
   for (const zone of manifest.zones) {
     const ring = new THREE.Mesh(
       new THREE.RingGeometry(Math.max(0.1, zone.radius - 0.28), zone.radius + 0.28, 96),
@@ -717,6 +728,10 @@ function* createWorldChunks(seedText: string, quality: QualityTier): Generator<v
 
   const ambientEmbellishments = createAmbientEmbellishments(manifest, quality, embellishmentMaterials);
   root.add(ambientEmbellishments.root);
+  yield;
+
+  const worldRegions = createWorldRegions(manifest, quality, embellishmentMaterials);
+  root.add(worldRegions.root);
   yield;
 
     completed = true;
@@ -735,6 +750,8 @@ function* createWorldChunks(seedText: string, quality: QualityTier): Generator<v
       runeRoot: ambientEmbellishments.runeRoot,
       floatingBookRoot: ambientEmbellishments.floatingBookRoot,
       movingLanternRoot: ambientEmbellishments.movingLanternRoot,
+      stationClockHands: worldRegions.stationClockHands,
+      railcarRoot: worldRegions.railcarRoot,
       manifest,
       validation,
     };
@@ -1058,6 +1075,8 @@ export default function Home() {
       world.floatingBookRoot.position.y = Number(world.floatingBookRoot.userData.baseY) + Math.sin(animationTime * 0.72) * 0.4;
       world.movingLanternRoot.rotation.y = Math.sin(animationTime * 0.075) * 0.12;
       world.movingLanternRoot.position.y = Math.sin(animationTime * 0.48) * 0.34;
+      world.stationClockHands.rotation.z = -animationTime * 0.08;
+      world.railcarRoot.position.x = Number(world.railcarRoot.userData.baseX) + Math.sin(animationTime * 0.12) * 5.5;
 
       const requestedScene = sceneRequestRef.current;
       if (requestedScene) sceneRequestRef.current = null;
@@ -1286,10 +1305,10 @@ export default function Home() {
       if (key === 'o') selectMode('orbit');
       if (key === 'a' && modeRef.current !== 'walk' && modeRef.current !== 'fly') toggleAutoRotate();
       if (key === 'r') randomSeed();
-      if (key >= '1' && key <= '5') selectScene(manifest.cameraLandmarks[Number(key) - 1].id);
-      if (key === '6') selectFixedView('courtyard-stair');
-      if (key === '7') selectFixedView('aerial-orbit');
-      if (key === '8') selectFixedView('great-hall');
+      if (key >= '1' && key <= '8') selectScene(manifest.cameraLandmarks[Number(key) - 1].id);
+      if (key === '9') selectFixedView('courtyard-stair');
+      if (key === '0') selectFixedView('aerial-orbit');
+      if (key === 'h') selectFixedView('great-hall');
       if (key === 'n') toggleTimeOfDay();
       if (key === ' ' && modeRef.current === 'tour') {
         event.preventDefault();
@@ -1364,7 +1383,7 @@ export default function Home() {
         {soakAudit.finalHeapMb !== null && <p className="audit-heap">Heap sample · {soakAudit.baselineHeapMb ?? 'N/A'}→{soakAudit.finalHeapMb} MB</p>}
         <button className="manifest-copy" onClick={copyManifest}>{manifestCopied ? 'Manifest copied' : 'Copy world manifest'}</button>
       </aside>
-      {entered && <nav className="scene-switcher" aria-label="Scene selection"><span>Jump to</span>{manifest.cameraLandmarks.map((landmark, index) => <button key={landmark.id} className={!fixedView && tourLocation.id === landmark.id && (mode === 'tour' || mode === 'orbit') ? 'active' : ''} onClick={() => selectScene(landmark.id)} aria-label={`Go to ${landmark.label}`}><kbd>{index + 1}</kbd>{SCENE_LABELS[landmark.id]}</button>)}{manifest.validationViews.filter((view) => view.id === 'courtyard-stair' || view.id === 'aerial-orbit' || view.id === 'great-hall').map((view, index) => <button key={view.id} className={fixedView?.id === view.id ? 'active' : ''} onClick={() => selectFixedView(view.id)} aria-label={`Go to ${view.label}`}><kbd>{index + 6}</kbd>{FIXED_SCENE_LABELS[view.id]}</button>)}</nav>}
+      {entered && <nav className="scene-switcher" aria-label="Scene selection"><span>Jump to</span>{manifest.cameraLandmarks.map((landmark, index) => <button key={landmark.id} className={!fixedView && tourLocation.id === landmark.id && (mode === 'tour' || mode === 'orbit') ? 'active' : ''} onClick={() => selectScene(landmark.id)} aria-label={`Go to ${landmark.label}`}><kbd>{index + 1}</kbd>{SCENE_LABELS[landmark.id]}</button>)}{manifest.validationViews.filter((view) => view.id === 'courtyard-stair' || view.id === 'aerial-orbit' || view.id === 'great-hall').map((view) => <button key={view.id} className={fixedView?.id === view.id ? 'active' : ''} onClick={() => selectFixedView(view.id)} aria-label={`Go to ${view.label}`}><kbd>{FIXED_SCENE_SHORTCUTS[view.id]}</kbd>{FIXED_SCENE_LABELS[view.id]}</button>)}</nav>}
       <footer className="scene-footer">
         <div className="landmark-caption"><span>{fixedView ? 'V' : mode === 'tour' ? String(manifest.cameraLandmarks.findIndex((landmark) => landmark.id === tourLocation.id) + 1).padStart(2, '0') : mode === 'walk' ? 'G' : mode === 'fly' ? 'F' : 'O'}</span><p><strong>{fixedView ? fixedView.label : mode === 'tour' ? tourLocation.label : mode === 'walk' ? 'Ground walk' : mode === 'fly' ? 'Free flight' : `${tourLocation.label} orbit`}</strong><small>{fixedView ? fixedView.subtitle : mode === 'tour' ? tourLocation.subtitle : mode === 'walk' ? 'Terrain-bound collision navigation' : mode === 'fly' ? 'Manual navigation' : 'Drag to inspect · Auto resumes on release'}</small></p>{mode === 'tour' && <button className="tour-pause" onClick={toggleTourPause}>{tourPaused ? 'Resume' : 'Pause'}</button>}</div>
         <nav className="camera-modes" aria-label="Camera mode">
