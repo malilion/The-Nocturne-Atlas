@@ -35,7 +35,7 @@ export interface WorldValidationReport {
 export interface WorldManifest {
   seed: string;
   seedHash: number;
-  generatorVersion: '1.2.0';
+  generatorVersion: '1.3.0';
   manifestHash: string;
   quality: QualityTier;
   towerHeights: number[];
@@ -55,9 +55,9 @@ export interface WorldManifest {
 }
 
 export const QUALITY_COUNTS: Record<QualityTier, WorldCounts> = {
-  low: { towers: 4, houses: 12, trees: 150, fireflies: 40, candles: 60, wisps: 28, reeds: 80, shoreRocks: 34 },
-  medium: { towers: 4, houses: 16, trees: 260, fireflies: 90, candles: 120, wisps: 60, reeds: 150, shoreRocks: 58 },
-  high: { towers: 4, houses: 22, trees: 520, fireflies: 160, candles: 240, wisps: 110, reeds: 260, shoreRocks: 92 },
+  low: { towers: 4, houses: 12, trees: 180, fireflies: 40, candles: 60, wisps: 28, reeds: 80, shoreRocks: 34 },
+  medium: { towers: 4, houses: 16, trees: 420, fireflies: 90, candles: 120, wisps: 60, reeds: 150, shoreRocks: 58 },
+  high: { towers: 4, houses: 22, trees: 1100, fireflies: 160, candles: 240, wisps: 110, reeds: 260, shoreRocks: 92 },
 };
 
 export function hashSeed(value: string) {
@@ -141,7 +141,7 @@ export function createWorldManifest(seedText: string, quality: QualityTier): Wor
   const base = {
     seed,
     seedHash,
-    generatorVersion: '1.2.0' as const,
+    generatorVersion: '1.3.0' as const,
     quality,
     towerHeights,
     castleGraph,

@@ -48,7 +48,7 @@ button { color: inherit; }
 .seed-meta button { border: 0; padding: 0; background: transparent; color: #aaaead; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
 .seed-meta i { margin: 0 7px; color: #555d5a; font-style: normal; }
 .generation-error { margin: 12px 0 0; border-top: 1px solid rgba(217,139,117,.25); padding-top: 10px; color: #c99384; font-size: 8px; letter-spacing: .06em; }
-.performance-hud { position: absolute; z-index: 4; top: 76px; right: 34px; width: 270px; border: 1px solid var(--line); border-top: 0; padding: 16px; background: rgba(5,9,13,.88); opacity: 0; pointer-events: none; transform: translateY(-8px); transition: opacity .2s, transform .2s; backdrop-filter: blur(16px); }
+.performance-hud { position: absolute; z-index: 4; top: 76px; right: 34px; width: 270px; max-height: calc(100svh - 176px); overflow-y: auto; border: 1px solid var(--line); border-top: 0; padding: 16px; background: rgba(5,9,13,.88); opacity: 0; pointer-events: none; transform: translateY(-8px); transition: opacity .2s, transform .2s; backdrop-filter: blur(16px); scrollbar-width: thin; }
 .performance-hud.is-open { opacity: 1; pointer-events: auto; transform: translateY(0); }
 .performance-hud header { display: flex; justify-content: space-between; color: #9da4a1; font-size: 8px; font-weight: 700; letter-spacing: .17em; text-transform: uppercase; }
 .performance-hud header button { border: 0; padding: 0; background: transparent; color: #9da4a1; cursor: pointer; font-size: 17px; line-height: .6; }
@@ -75,6 +75,9 @@ button { color: inherit; }
 .effect-toggles input::after { content: ''; position: absolute; top: 2px; left: 2px; width: 8px; height: 8px; border-radius: 50%; background: #727b77; transition: transform .2s, background .2s; }
 .effect-toggles input:checked { background: rgba(162,191,171,.2); }
 .effect-toggles input:checked::after { background: #bdd1c3; transform: translateX(13px); }
+.effect-toggles input:disabled { cursor: not-allowed; opacity: .35; }
+.diagnostic-sliders { margin-bottom: 13px; }
+.diagnostic-sliders .water-control:last-child { margin-bottom: 0; }
 .water-control { margin: 0 0 13px; }
 .water-control label { display: flex; justify-content: space-between; margin-bottom: 8px; color: #8d9491; font-size: 8px; letter-spacing: .06em; }
 .water-control output { color: #b7bfbb; font-family: 'Courier New', monospace; }
