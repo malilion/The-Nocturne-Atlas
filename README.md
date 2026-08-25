@@ -27,12 +27,15 @@ Captured from the deterministic `MAGIC-001` world at Medium quality in night mod
 - `T` — cinematic tour
 - `F` — free fly; click the world, then use `WASD`, `Q`/`E`, and `Shift`
 - `O` — orbit; drag to rotate and scroll to zoom
+- `A` — start or stop automatic orbit rotation
 - `R` — generate a new seed
 - `Esc` — release the pointer in free-fly mode
 - `Space` — pause or resume the cinematic tour
 - `1`–`5` — jump directly to Castle, Village, Lake, Forest, or Tower
 - `6` / `7` — fixed Courtyard Stair or Aerial validation view
 - `N` — switch between day and night
+
+Orbit mode supports mouse drag and wheel zoom on desktop, plus one-finger drag and two-finger pinch zoom on touch screens. Starting automatic rotation switches directly to Orbit; manual drag and zoom remain available while it is running.
 
 The seed panel accepts any text. Re-entering the same seed recreates the same world. The HUD shows live frame and frame time, draw calls, triangles, points/lines, GPU geometry/texture ownership, generation time, optional browser JS heap data, and the resources released by the last rebuild.
 

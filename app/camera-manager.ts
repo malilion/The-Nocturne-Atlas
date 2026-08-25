@@ -11,6 +11,7 @@ export interface CameraUpdate {
   mode: CameraMode;
   tourPaused: boolean;
   reducedMotion: boolean;
+  autoRotate: boolean;
   seed: string;
   requestedScene: LandmarkId | null;
   fixedView: FixedView | null;
@@ -46,6 +47,9 @@ export class CameraManager {
   private orbitPitch = 0.35;
   private orbitRadius = 68;
   private orbitDragging = false;
+  private touchX = 0;
+  private touchY = 0;
+  private pinchDistance = 0;
   private readonly velocity = new THREE.Vector3();
   private readonly movement = new THREE.Vector3();
   private readonly forward = new THREE.Vector3();
@@ -127,6 +131,7 @@ export class CameraManager {
         }
       }
     } else if (this.mode === 'orbit') {
+      if (settings.autoRotate) this.orbitYaw += settings.delta * (settings.reducedMotion ? 0.08 : 0.16);
       this.camera.position.set(
         this.orbitTarget.x + Math.cos(this.orbitYaw) * Math.cos(this.orbitPitch) * this.orbitRadius,
         this.orbitTarget.y + Math.sin(this.orbitPitch) * this.orbitRadius,
@@ -168,7 +173,20 @@ export class CameraManager {
     document.removeEventListener('mousemove', this.onMouseMove);
     this.domElement.removeEventListener('mousedown', this.onPointerDown);
     this.domElement.removeEventListener('wheel', this.onWheel);
+    this.domElement.removeEventListener('touchstart', this.onTouchStart);
+    this.domElement.removeEventListener('touchmove', this.onTouchMove);
+    this.domElement.removeEventListener('touchend', this.onTouchEnd);
+    this.domElement.removeEventListener('touchcancel', this.onTouchEnd);
     this.controlsAttached = false;
+  }
+
+  rotateOrbit(deltaX: number, deltaY: number) {
+    this.orbitYaw -= deltaX * 0.004;
+    this.orbitPitch = THREE.MathUtils.clamp(this.orbitPitch + deltaY * 0.004, 0.08, 1.35);
+  }
+
+  zoomOrbit(delta: number) {
+    this.orbitRadius = THREE.MathUtils.clamp(this.orbitRadius + delta, 27, 115);
   }
 
   private createTourCurves(manifest: WorldManifest) {
@@ -233,6 +251,10 @@ export class CameraManager {
     document.addEventListener('mousemove', this.onMouseMove);
     this.domElement.addEventListener('mousedown', this.onPointerDown);
     this.domElement.addEventListener('wheel', this.onWheel, { passive: true });
+    this.domElement.addEventListener('touchstart', this.onTouchStart, { passive: false });
+    this.domElement.addEventListener('touchmove', this.onTouchMove, { passive: false });
+    this.domElement.addEventListener('touchend', this.onTouchEnd, { passive: false });
+    this.domElement.addEventListener('touchcancel', this.onTouchEnd, { passive: false });
     this.controlsAttached = true;
   }
 
@@ -248,11 +270,52 @@ export class CameraManager {
       this.flyYaw -= event.movementX * 0.0022;
       this.flyPitch = THREE.MathUtils.clamp(this.flyPitch - event.movementY * 0.0022, -1.35, 1.35);
     } else if (this.mode === 'orbit' && this.orbitDragging) {
-      this.orbitYaw -= event.movementX * 0.004;
-      this.orbitPitch = THREE.MathUtils.clamp(this.orbitPitch + event.movementY * 0.004, 0.08, 1.35);
+      this.rotateOrbit(event.movementX, event.movementY);
     }
   };
   private readonly onWheel = (event: WheelEvent) => {
-    if (this.mode === 'orbit') this.orbitRadius = THREE.MathUtils.clamp(this.orbitRadius + event.deltaY * 0.035, 27, 115);
+    if (this.mode === 'orbit') this.zoomOrbit(event.deltaY * 0.035);
   };
+  private readonly onTouchStart = (event: TouchEvent) => {
+    if (this.mode !== 'orbit') return;
+    event.preventDefault();
+    if (event.touches.length === 1) {
+      this.touchX = event.touches[0].clientX;
+      this.touchY = event.touches[0].clientY;
+      this.pinchDistance = 0;
+      this.orbitDragging = true;
+    } else if (event.touches.length >= 2) {
+      this.pinchDistance = this.getPinchDistance(event.touches);
+      this.orbitDragging = false;
+    }
+  };
+  private readonly onTouchMove = (event: TouchEvent) => {
+    if (this.mode !== 'orbit') return;
+    event.preventDefault();
+    if (event.touches.length === 1 && this.pinchDistance === 0) {
+      const nextX = event.touches[0].clientX;
+      const nextY = event.touches[0].clientY;
+      this.rotateOrbit(nextX - this.touchX, nextY - this.touchY);
+      this.touchX = nextX;
+      this.touchY = nextY;
+    } else if (event.touches.length >= 2) {
+      const nextDistance = this.getPinchDistance(event.touches);
+      this.zoomOrbit((this.pinchDistance - nextDistance) * 0.18);
+      this.pinchDistance = nextDistance;
+    }
+  };
+  private readonly onTouchEnd = (event: TouchEvent) => {
+    if (this.mode !== 'orbit') return;
+    event.preventDefault();
+    this.pinchDistance = 0;
+    this.orbitDragging = event.touches.length === 1;
+    if (event.touches.length === 1) {
+      this.touchX = event.touches[0].clientX;
+      this.touchY = event.touches[0].clientY;
+    }
+  };
+
+  private getPinchDistance(touches: TouchList) {
+    return Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY);
+  }
 }

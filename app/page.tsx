@@ -513,6 +513,7 @@ export default function Home() {
   const zoneDebugRef = useRef(false);
   const tourPausedRef = useRef(true);
   const reducedMotionRef = useRef(false);
+  const autoRotateRef = useRef(false);
   const waterMotionRef = useRef(1);
   const ambientPausedRef = useRef(false);
   const timeOfDayRef = useRef<TimeOfDay>('night');
@@ -537,6 +538,7 @@ export default function Home() {
   const [tourLocation, setTourLocation] = useState<WorldManifest['cameraLandmarks'][number]>(() => createWorldManifest(DEFAULT_SEED, 'medium').cameraLandmarks[0]);
   const [tourPaused, setTourPaused] = useState(true);
   const [reducedMotion, setReducedMotion] = useState(false);
+  const [autoRotate, setAutoRotate] = useState(false);
   const [waterMotion, setWaterMotion] = useState(1);
   const [ambientPaused, setAmbientPaused] = useState(false);
   const [timeOfDay, setTimeOfDay] = useState<TimeOfDay>('night');
@@ -559,6 +561,7 @@ export default function Home() {
   useEffect(() => { zoneDebugRef.current = zoneDebugEnabled; }, [zoneDebugEnabled]);
   useEffect(() => { tourPausedRef.current = tourPaused; }, [tourPaused]);
   useEffect(() => { reducedMotionRef.current = reducedMotion; }, [reducedMotion]);
+  useEffect(() => { autoRotateRef.current = autoRotate; }, [autoRotate]);
   useEffect(() => { waterMotionRef.current = waterMotion; }, [waterMotion]);
   useEffect(() => { ambientPausedRef.current = ambientPaused; }, [ambientPaused]);
   useEffect(() => { timeOfDayRef.current = timeOfDay; }, [timeOfDay]);
@@ -733,6 +736,7 @@ export default function Home() {
         mode: modeRef.current,
         tourPaused: tourPausedRef.current,
         reducedMotion: reducedMotionRef.current,
+        autoRotate: autoRotateRef.current,
         seed: seedRef.current,
         requestedScene,
         fixedView: fixedPoseRef.current,
@@ -863,6 +867,10 @@ export default function Home() {
     setFixedView(null);
     modeRef.current = nextMode;
     setMode(nextMode);
+    if (nextMode !== 'orbit') {
+      autoRotateRef.current = false;
+      setAutoRotate(false);
+    }
     if (nextMode !== 'fly' && document.pointerLockElement) document.exitPointerLock();
   }, []);
 
@@ -913,6 +921,18 @@ export default function Home() {
     });
   }, []);
 
+  const toggleAutoRotate = useCallback(() => {
+    fixedPoseRef.current = null;
+    setFixedView(null);
+    modeRef.current = 'orbit';
+    setMode('orbit');
+    setAutoRotate((current) => {
+      const next = !current;
+      autoRotateRef.current = next;
+      return next;
+    });
+  }, []);
+
   useEffect(() => {
     const shortcuts = (event: KeyboardEvent) => {
       if (event.target instanceof HTMLInputElement) return;
@@ -920,6 +940,7 @@ export default function Home() {
       if (key === 't') selectMode('tour');
       if (key === 'f') selectMode('fly');
       if (key === 'o') selectMode('orbit');
+      if (key === 'a') toggleAutoRotate();
       if (key === 'r') randomSeed();
       if (key >= '1' && key <= '5') selectScene(manifest.cameraLandmarks[Number(key) - 1].id);
       if (key === '6') selectFixedView('courtyard-stair');
@@ -932,7 +953,7 @@ export default function Home() {
     };
     window.addEventListener('keydown', shortcuts);
     return () => window.removeEventListener('keydown', shortcuts);
-  }, [manifest.cameraLandmarks, randomSeed, selectFixedView, selectMode, selectScene, toggleTimeOfDay, toggleTourPause]);
+  }, [manifest.cameraLandmarks, randomSeed, selectFixedView, selectMode, selectScene, toggleAutoRotate, toggleTimeOfDay, toggleTourPause]);
 
   return (
     <main className={`experience-shell ${entered ? 'is-entered' : ''} ${timeOfDay === 'day' ? 'is-day' : 'is-night'}`}>
@@ -998,8 +1019,9 @@ export default function Home() {
           <button className={mode === 'tour' ? 'active' : ''} onClick={() => selectMode('tour')}><kbd>T</kbd> Tour</button>
           <button className={mode === 'fly' ? 'active' : ''} onClick={() => selectMode('fly')}><kbd>F</kbd> Free fly</button>
           <button className={mode === 'orbit' ? 'active' : ''} onClick={() => selectMode('orbit')}><kbd>O</kbd> Orbit</button>
+          <button className={autoRotate ? 'active' : ''} onClick={toggleAutoRotate} aria-label={`${autoRotate ? 'Stop' : 'Start'} automatic orbit rotation`} aria-pressed={autoRotate}><kbd>A</kbd> Auto</button>
         </nav>
-        <p className="coordinates">{mode === 'fly' ? 'WASD · Q/E · SHIFT' : mode === 'orbit' ? 'DRAG · SCROLL' : `SPACE · ${tourPaused ? 'RESUME' : 'PAUSE'} TOUR`}<br />R · NEW WORLD</p>
+        <p className="coordinates">{mode === 'fly' ? 'WASD · Q/E · SHIFT' : mode === 'orbit' ? `${autoRotate ? 'AUTO · ' : ''}DRAG · SCROLL/PINCH` : `SPACE · ${tourPaused ? 'RESUME' : 'PAUSE'} TOUR`}<br />A · AUTO ROTATE · R · NEW WORLD</p>
       </footer>
     </main>
   );

@@ -11,6 +11,7 @@ const baseUpdate: CameraUpdate = {
   mode: 'tour',
   tourPaused: true,
   reducedMotion: false,
+  autoRotate: false,
   seed: manifest.seed,
   requestedScene: null,
   fixedView: null,
@@ -54,4 +55,23 @@ test('CameraManager owns an idempotent lifecycle', () => {
   manager.dispose();
   manager.dispose();
   assert.throws(() => manager.update(baseUpdate), /disposed/);
+});
+
+test('CameraManager applies orbit drag, zoom, and automatic rotation', () => {
+  const camera = new THREE.PerspectiveCamera();
+  const manager = new CameraManager(camera, null, manifest);
+  const orbitUpdate: CameraUpdate = { ...baseUpdate, mode: 'orbit', elapsed: 1 };
+  manager.update(orbitUpdate);
+  const initialPosition = camera.position.clone();
+
+  manager.rotateOrbit(120, -40);
+  manager.zoomOrbit(36);
+  manager.update({ ...orbitUpdate, elapsed: 2 });
+  const manipulatedPosition = camera.position.clone();
+
+  manager.update({ ...orbitUpdate, elapsed: 3, delta: 1, autoRotate: true });
+
+  assert.ok(manipulatedPosition.distanceTo(initialPosition) > 10);
+  assert.ok(camera.position.distanceTo(manipulatedPosition) > 1);
+  assert.ok(Math.abs(camera.position.distanceTo(new THREE.Vector3(-7, 10, -4)) - 63) < 0.0001);
 });
