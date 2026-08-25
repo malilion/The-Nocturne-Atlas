@@ -58,12 +58,13 @@ export function createCastleEmbellishments(manifest: WorldManifest, materials: E
   libraryRoof.castShadow = true;
   library.add(libraryRoof);
 
-  const libraryWindows = new THREE.InstancedMesh(new THREE.PlaneGeometry(1.05, 1.75), materials.glass, 10);
+  const libraryWindowSlots = [-4.4, -2.2, 2.2, 4.4];
+  const libraryWindows = new THREE.InstancedMesh(new THREE.PlaneGeometry(1.05, 1.75), materials.glass, libraryWindowSlots.length * 2);
   libraryWindows.name = 'library-leaded-windows';
-  for (let index = 0; index < 10; index += 1) {
-    const side = index < 5 ? -1 : 1;
-    const slot = index % 5;
-    position.set(-4.4 + slot * 2.2, 2.6 + (slot % 2) * 1.8, side * 3.11);
+  for (let index = 0; index < libraryWindowSlots.length * 2; index += 1) {
+    const side = index < libraryWindowSlots.length ? -1 : 1;
+    const slot = index % libraryWindowSlots.length;
+    position.set(libraryWindowSlots[slot], 2.6 + (slot % 2) * 1.8, side * 3.11);
     quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), side < 0 ? 0 : Math.PI);
     compose(matrix, position, quaternion, scale.set(1, 1, 1));
     libraryWindows.setMatrixAt(index, matrix);
@@ -385,7 +386,15 @@ export function createAmbientEmbellishments(
   const movingLanternRoot = new THREE.Group();
   movingLanternRoot.name = 'moving-wayfinder-lanterns';
   const lanternCount = quality === 'low' ? 7 : quality === 'medium' ? 12 : 18;
-  const lanternCages = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.23, 0.3, 0.72, 6, 1, true), materials.metal, lanternCount);
+  const lanternCageMaterial = new THREE.MeshStandardMaterial({
+    color: 0x6d5a3c,
+    roughness: 0.54,
+    metalness: 0.3,
+    emissive: new THREE.Color(0x3a2208),
+    emissiveIntensity: 0.85,
+    side: THREE.DoubleSide,
+  });
+  const lanternCages = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.23, 0.3, 0.72, 6, 1, true), lanternCageMaterial, lanternCount);
   const lanternGlowMaterial = new THREE.MeshBasicMaterial({ color: new THREE.Color().setRGB(3.2, 1.1, 0.2), transparent: true, opacity: 0.82, toneMapped: false });
   const lanternGlow = new THREE.InstancedMesh(new THREE.OctahedronGeometry(0.22, 0), lanternGlowMaterial, lanternCount);
   lanternCages.name = 'moving-lantern-cages';

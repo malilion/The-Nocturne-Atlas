@@ -55,7 +55,7 @@ export interface WorldValidationReport {
 export interface WorldManifest {
   seed: string;
   seedHash: number;
-  generatorVersion: '2.8.0';
+  generatorVersion: '2.9.0';
   manifestHash: string;
   quality: QualityTier;
   towerHeights: number[];
@@ -161,7 +161,7 @@ export function createWorldManifest(seedText: string, quality: QualityTier): Wor
     { id: 'aerial-orbit', label: 'Aerial Survey', subtitle: 'World zoning overview', position: [2 + validationCamera() * 4, 68 + validationCamera() * 4, 64 + validationCamera() * 5], target: [-7, 1, -4] },
     { id: 'great-hall', label: 'The Great Hall', subtitle: 'Seeded castle interior', position: [-8, castleBaseY + 3.2, 0], target: [-8, castleBaseY + 2.8, -8] },
     { id: 'station-hall', label: 'Veilcross Waiting Hall', subtitle: 'Inspect the sealed midnight departure', position: [-53, stationBaseY + 2.45, -30.15], target: [-53, stationBaseY + 3.35, -36.15] },
-    { id: 'library-hall', label: 'Veyra Archive Library', subtitle: 'Seeded books and memory research', position: [-24.5, castleBaseY + 2.45, -4.35], target: [-24.5, castleBaseY + 2.9, -9.65] },
+    { id: 'library-hall', label: 'Veyra Archive Library', subtitle: 'Seeded books and memory research', position: [-24.5, castleBaseY + 2.5, -4.35], target: [-28.7, castleBaseY + 2.5, -9.1] },
   ].map((view) => ({
     ...view,
     position: [
@@ -219,7 +219,7 @@ export function createWorldManifest(seedText: string, quality: QualityTier): Wor
   const base = {
     seed,
     seedHash,
-    generatorVersion: '2.8.0' as const,
+    generatorVersion: '2.9.0' as const,
     quality,
     towerHeights,
     castleGraph,

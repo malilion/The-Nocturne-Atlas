@@ -23,6 +23,7 @@ import { ResourceRegistry } from './resource-registry';
 import { createAmbientEmbellishments, createCastleEmbellishments, createForestEmbellishments, createVillageEmbellishments } from './world-embellishments';
 import { createWorldManifest, hashSeed, mulberry32, terrainHeight, validateWorldManifest, type QualityTier, type WorldManifest, type WorldZoneType } from './world-core';
 import { createWorldRegions } from './world-regions';
+import { createWorldPopulation, WorldPopulationSystem } from './world-population';
 import { WorldStreamingSystem } from './world-streaming';
 import { advanceStationQuest, getStationQuest, getStationQuestCopy, type StationQuestStep } from './station-quest';
 
@@ -743,6 +744,9 @@ function* createWorldChunks(seedText: string, quality: QualityTier): Generator<v
   root.add(worldRegions.root);
   yield;
 
+  root.add(createWorldPopulation(manifest));
+  yield;
+
     completed = true;
     return {
       root,
@@ -915,6 +919,7 @@ export default function Home() {
     streamingSystemRef.current = streamingSystem;
     let streamingStatus = streamingSystem.status;
     const npcBehavior = new NpcBehaviorSystem(world.root, world.manifest.seed);
+    const worldPopulation = new WorldPopulationSystem(world.root);
     let lastGenerationMs = performance.now() - initialGenerationStarted;
     let lastDisposal = { geometries: 0, materials: 0 };
     scene.add(world.root);
@@ -1002,6 +1007,7 @@ export default function Home() {
           audioSystem.setSeed(world.manifest.seedHash);
           streamingSystem.setWorld(world.root, world.manifest, rebuildTicket.payload.quality);
           npcBehavior.setWorld(world.root, world.manifest.seed);
+          worldPopulation.setWorld(world.root);
           scene.remove(previousWorld.root);
           lastDisposal = disposeObject(previousWorld.root);
           renderer.setPixelRatio(Math.min(window.devicePixelRatio, renderScale()));
@@ -1104,6 +1110,7 @@ export default function Home() {
       world.stationClockHands.rotation.z = -animationTime * 0.08;
       world.railcarRoot.position.x = Number(world.railcarRoot.userData.baseX) + Math.sin(animationTime * 0.12) * 5.5;
       npcBehavior.update(animationTime, reducedMotionRef.current);
+      worldPopulation.update(animationTime, reducedMotionRef.current);
 
       const requestedScene = sceneRequestRef.current;
       if (requestedScene) sceneRequestRef.current = null;
@@ -1196,6 +1203,7 @@ export default function Home() {
       streamingSystem.dispose();
       streamingSystemRef.current = null;
       npcBehavior.dispose();
+      worldPopulation.dispose();
       environment.dispose();
       scene.clear();
       composer.dispose();

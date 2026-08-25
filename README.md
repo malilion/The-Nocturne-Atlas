@@ -8,9 +8,9 @@ An original, seed-driven 3D wizarding world built with Three.js and TypeScript.
 
 ## Scene Gallery / 場景圖庫
 
-The paired night and daylight galleries were captured from the deterministic `MAGIC-001` world with generator `1.9.0` at Medium quality. All sixteen images are actual scene-switch destinations with the tour paused after arrival, including the seeded Great Hall interior.
+The paired night and daylight galleries were captured from the deterministic `MAGIC-001` world with generator `2.9.0` at Medium quality. All twenty images are actual scene-switch destinations with the tour paused after arrival, including the three seeded interiors and the resident world cast.
 
-夜間與白天兩組圖庫均擷取自固定種子 `MAGIC-001`、生成器 `1.9.0` 與中等畫質。十六張圖片都是實際可切換的場景目的地，抵達後導覽會保持暫停，並包含種子化城堡大廳室內場景。
+夜間與白天兩組圖庫均擷取自固定種子 `MAGIC-001`、生成器 `2.9.0` 與中等畫質。二十張圖片都是實際可切換的場景目的地，抵達後導覽會保持暫停，並包含三個種子化室內場景與世界常駐角色。
 
 ### Night / 夜晚
 
@@ -30,6 +30,10 @@ The paired night and daylight galleries were captured from the deterministic `MA
 | --- | --- |
 | ![Aerial survey showing the deterministic world zoning overview](docs/screenshots/aerial.png) | ![The Great Hall interior with floating candles, long tables, banners, and a dais](docs/screenshots/great-hall.png) |
 
+| 9 · Veilcross Waiting Hall / 霧岔候車廳 | 10 · Veyra Archive / Veyra 檔案圖書館 |
+| --- | --- |
+| ![Veilcross waiting hall at night with the glowing departure board and a resident traveller](docs/screenshots/station-hall.png) | ![Veyra Archive library at night with seeded bookcases, floating volumes, and the archive researcher](docs/screenshots/library-hall.png) |
+
 ### Daylight / 白天
 
 | 1 · Castle of Veyra / 維拉城堡 | 2 · Lumen Row / 流明街村莊 |
@@ -47,6 +51,10 @@ The paired night and daylight galleries were captured from the deterministic `MA
 | 7 · Aerial Survey / 空中勘察 | 8 · The Great Hall / 城堡大廳 |
 | --- | --- |
 | ![Aerial daylight survey of the complete deterministic world](docs/screenshots/aerial-day.png) | ![The Great Hall daylight interior with sunlit walls, tables, banners, and floating candles](docs/screenshots/great-hall-day.png) |
+
+| 9 · Veilcross Waiting Hall / 霧岔候車廳 | 10 · Veyra Archive / Veyra 檔案圖書館 |
+| --- | --- |
+| ![Veilcross waiting hall in daylight with the departure board, tall windows, and a resident traveller](docs/screenshots/station-hall-day.png) | ![Veyra Archive library in daylight with seeded bookcases, floating volumes, and the archive researcher](docs/screenshots/library-hall-day.png) |
 
 ---
 
@@ -93,13 +101,13 @@ Create a production build with `npm run build`. Run the deterministic regression
 
 ### Validation evidence
 
-- All eight fixed destinations were browser-checked in both night and daylight modes and recaptured from generator `1.9.0` at 1280×720, producing sixteen gallery images.
+- All ten gallery destinations were browser-checked in both night and daylight modes and recaptured from generator `2.9.0` at 1280×720, producing twenty gallery images. Each capture waits for the 1.25-second camera hand-off to settle, so the night and daylight frames of one scene share an identical pose.
 - Village, Forest, Tower, and Moving Stair cameras satisfy presentation-clearance contracts across twenty regression seeds.
 - Day/night transition, automatic orbit, mouse drag, and wheel zoom were exercised in the local WebGL experience. Touch input shares the tested orbit constraints and adds one-finger drag plus two-finger pinch.
-- All 62 deterministic, lifecycle, shader, audio, environment, streaming, NPC-motion, collision, camera, interior, region-topology, quest-state, embellishment, incremental-generation, rebuild-coordination, and presentation tests pass. Coverage includes cooperative chunk scheduling, mid-build cancellation and cleanup, cross-region quest transitions and landmark mapping, deterministic NPC patrol profiles, reduced-motion pose restoration, camera-distance activation, streaming hysteresis and aerial overrides, seed/day-aware audio profiles, progressive quest cues, seeded mountains/ruins/station generation, seeded visual embellishments and quality scaling, metal/glass shader behavior, latest-request-wins coalescing, deterministic Great Hall, Veilcross, and Veyra Archive furnishing, NPC/quest attachment contracts, grounded movement, world/lake/castle/village/landmark collision, seeded detail profiles, night fill ownership, exposure, fog density, daylight transition, shadow toggles, landmark-relative orbit focus, drag-paused automatic rotation, and idempotent cleanup.
+- All 64 deterministic, lifecycle, shader, audio, environment, streaming, NPC-motion, collision, camera, interior, region-topology, quest-state, embellishment, incremental-generation, rebuild-coordination, and presentation tests pass. Coverage includes deterministic world-population placement across all eight regions, instanced-cast animation and seed-sensitive cast selection, cooperative chunk scheduling, mid-build cancellation and cleanup, cross-region quest transitions and landmark mapping, deterministic NPC patrol profiles, reduced-motion pose restoration, camera-distance activation, streaming hysteresis and aerial overrides, seed/day-aware audio profiles, progressive quest cues, seeded mountains/ruins/station generation, seeded visual embellishments and quality scaling, metal/glass shader behavior, latest-request-wins coalescing, deterministic Great Hall, Veilcross, and Veyra Archive furnishing, NPC/quest attachment contracts, grounded movement, world/lake/castle/village/landmark collision, seeded detail profiles, night fill ownership, exposure, fog density, daylight transition, shadow toggles, landmark-relative orbit focus, drag-paused automatic rotation, and idempotent cleanup.
 - Production build and lint complete without errors. The build currently reports a non-blocking warning for the Three.js client chunk exceeding 500 kB after minification.
-- The generator `1.9.0` Medium-quality castle view reports 60 FPS, 189 draw calls, 66k triangles, 66 geometries, and 16 textures in the local Chromium/WebGL2 1920×1080 validation run. The Great Hall view reports 60 FPS, 129 draw calls, and 59k triangles. Cross-device FPS remains hardware-dependent.
-- The settled `20× rebuild audit` completed cleanly at 1920×1080: geometries remained `66→66`, while the available browser heap sample settled from `38.5→39.2 MB` after a three-second post-rebuild observation window.
+- The generator `2.9.0` Medium-quality castle view reports 60 FPS, 405 draw calls, 155k triangles, and 17 textures in the local Chromium/WebGL2 1920×1080 validation run; resident geometry count follows the active streamed regions and ranged from 114 to 179 during that run. The Great Hall reports 60 FPS with 235 draw calls and 85k triangles, the Veyra Archive 45 FPS with 363 draw calls and 136k triangles, and the Veilcross waiting hall 46 FPS with 263 draw calls and 110k triangles. The aerial survey forces all five streamed regions visible and is the heaviest view at 44 FPS, 596 draw calls, and 173k triangles. Cross-device FPS remains hardware-dependent.
+- The `20× rebuild audit` at 1920×1080 held GPU geometry at `114→114`. Its in-app heap sample reads `25→34 MB` and the button therefore reports `Audit review`: V8 has not collected the rebuild garbage inside the three-second observation window. Forcing collection through the DevTools protocol immediately after the same run drops the heap from 47 MB to 24 MB — below the pre-audit baseline — so no superseded world is retained across rebuilds.
 
 ### Implementation notes
 
@@ -129,7 +137,9 @@ Generator `2.7.0` extends the Veilcross micro-quest into a cross-region courier 
 
 Generator `2.8.0` converts the Veyra Archive library wing into the project's third enterable interior. Its hollow shell contains seeded bookcases and books, reading desks, a leaded-glass skylight, floating volumes, a central archive table, a luminous memory orb, bounded interior lighting, and a stable researcher anchor for future interaction. The exterior roof, windows, and balcony remain intact, while the direct `L` shortcut and fixed scene view provide immediate access.
 
-Regeneration uses an atomic, latest-request-wins pipeline. World construction is split into deterministic chunks that yield after a browser paint opportunity, so the active world keeps rendering and superseded tickets can be canceled through `AbortController` while generation is still in progress. Partially built roots own their resources from the first cancellable boundary and dispose them automatically on cancellation. A new world is fully constructed and validated before it replaces the active root. Shared resources are deduplicated through an idempotent registry before disposal. Failed generation leaves the existing world visible, while WebGL context restoration triggers a validated rebuild. The `20× rebuild audit` tracks GPU geometry and browser heap samples when heap telemetry is available. The latest coordinator validation completed cleanly at `65→65` geometries with the available heap sample settling from `36.9→34.7 MB`.
+Generator `2.9.0` populates the wider world with a deterministic resident cast. Sixteen seeded placements span the castle, Lumen Row, the Thorn Veil, Mirror Mere, Umbravale, Orison Ruins, Veilcross Station, and the Veyra Archive, and the active quality tier admits eight, twelve, or sixteen of them. Every figure shares five instanced batches — cloak, head, hat brim, hat crown, and staff — so the whole cast costs five draw calls regardless of headcount. Seeded pace, phase, stride, and facing drive low-cost breathing, turning, and short patrol motion, while named anchors carry role, region, and label metadata for later interaction. Ambient pause and reduced motion restore the stable base pose, and every rebuild rebinds the system without retaining stale scene references. The wayfinder lantern housings also moved off the shared metal shader onto a dedicated warm-bronze material, so a lantern drifting close to the camera reads as a lit fixture instead of an unlit silhouette.
+
+Regeneration uses an atomic, latest-request-wins pipeline. World construction is split into deterministic chunks that yield after a browser paint opportunity, so the active world keeps rendering and superseded tickets can be canceled through `AbortController` while generation is still in progress. Partially built roots own their resources from the first cancellable boundary and dispose them automatically on cancellation. A new world is fully constructed and validated before it replaces the active root. Shared resources are deduplicated through an idempotent registry before disposal. Failed generation leaves the existing world visible, while WebGL context restoration triggers a validated rebuild. The `20× rebuild audit` tracks GPU geometry and browser heap samples when heap telemetry is available. The latest coordinator validation held `114→114` geometries, and forcing collection after the run returns the heap to 24 MB against a 25 MB pre-audit baseline.
 
 The castle manifest is a connected topology of towers, hall, courtyard, gate, corridors, bridges, and a moving-stair route. Village placement validates road setback, zone membership, castle/lake exclusion, terrain slope, unique IDs, and footprint separation. The cinematic camera follows seed-aware Catmull–Rom curves through five terrain-safe landmarks, with every segment checked across twenty regression seeds.
 
@@ -137,7 +147,7 @@ No third-party models, textures, characters, names, or franchise assets are incl
 
 ### Scope
 
-This repository contains the complete Phase 1 vertical slice plus grounded collision navigation, three enterable Phase 2 interiors, two animated station characters, the first complete deterministic cross-region quest, an original procedural soundscape, and camera-distance region streaming. A broader world NPC population remains planned follow-up work.
+This repository contains the complete Phase 1 vertical slice plus grounded collision navigation, three enterable Phase 2 interiors, two animated station characters, the first complete deterministic cross-region quest, an original procedural soundscape, camera-distance region streaming, and a deterministic world-wide resident cast spanning all eight regions.
 
 ---
 
@@ -184,13 +194,13 @@ npm run dev
 
 ### 驗證結果
 
-- 八個固定場景目的地皆已使用生成器 `1.9.0`，分別在夜間與白天模式以 1280×720 實際檢查並重新截圖，共產生十六張圖庫圖片。
+- 十個圖庫場景目的地皆已使用生成器 `2.9.0`，分別在夜間與白天模式以 1280×720 實際檢查並重新截圖，共產生二十張圖庫圖片。每次擷取都會等待 1.25 秒的鏡頭轉場收斂，因此同一場景的夜間與白天畫面使用完全相同的機位。
 - 村莊、森林、高塔與移動階梯鏡頭，在二十組回歸種子中皆符合取景淨空規則。
 - 日夜切換、自動環繞、滑鼠拖曳與滾輪縮放已在本機 WebGL 場景操作驗證。觸控操作沿用相同環繞限制，並加入單指拖曳與雙指縮放。
-- 62 項固定性、生命週期、Shader、音效、環境、串流、NPC 動作、碰撞、鏡頭、室內、區域拓樸、任務狀態、場景深化、分段生成、重建協調與場景呈現測試全數通過。涵蓋跨區域任務轉換與地標映射、固定種子 NPC 巡查設定、減少動態時的姿勢還原、鏡頭距離啟用、串流遲滯與空中視角覆寫、種子／日夜感知音訊設定、漸進任務提示音、生成途中取消與清理、山脈／遺跡／車站生成、固定種子城堡、霧岔與 Veyra Archive 室內陳設、NPC／任務掛點契約、貼地移動、世界／湖泊／城堡／村莊碰撞、種子化細節設定、夜間補光管理、曝光、霧密度、日夜轉換、陰影切換、地標中心環繞、拖曳暫停自轉與重複清理安全性。
+- 64 項固定性、生命週期、Shader、音效、環境、串流、NPC 動作、碰撞、鏡頭、室內、區域拓樸、任務狀態、場景深化、分段生成、重建協調與場景呈現測試全數通過。涵蓋八個區域的固定種子角色配置、實例化角色動畫與依種子變動的角色名單、跨區域任務轉換與地標映射、固定種子 NPC 巡查設定、減少動態時的姿勢還原、鏡頭距離啟用、串流遲滯與空中視角覆寫、種子／日夜感知音訊設定、漸進任務提示音、生成途中取消與清理、山脈／遺跡／車站生成、固定種子城堡、霧岔與 Veyra Archive 室內陳設、NPC／任務掛點契約、貼地移動、世界／湖泊／城堡／村莊碰撞、種子化細節設定、夜間補光管理、曝光、霧密度、日夜轉換、陰影切換、地標中心環繞、拖曳暫停自轉與重複清理安全性。
 - 正式建置與 Lint 均無錯誤。目前僅有 Three.js 用戶端區塊壓縮後超過 500 kB 的非阻擋警告。
-- 生成器 `1.9.0` 的中等畫質城堡視角，在本機 Chromium／WebGL2、1920×1080 驗證中為 60 FPS、189 Draw Calls、66k 三角形、66 個 Geometry 與 16 個 Texture；城堡大廳視角則為 60 FPS、129 Draw Calls 與 59k 三角形。不同裝置的 FPS 仍取決於實際硬體。
-- 1920×1080 的 `20× rebuild audit` 已通過穩定驗證：Geometry 維持 `66→66`，瀏覽器可提供的 Heap 樣本在重建後三秒觀察窗中由 `38.5→39.2 MB`。
+- 生成器 `2.9.0` 的中等畫質城堡視角，在本機 Chromium／WebGL2、1920×1080 驗證中為 60 FPS、405 Draw Calls、155k 三角形與 17 個 Texture，常駐 Geometry 數量會隨目前啟用的串流區域變動，本次驗證區間為 114 至 179；城堡大廳為 60 FPS、235 Draw Calls 與 85k 三角形，Veyra Archive 為 45 FPS、363 Draw Calls 與 136k 三角形，霧岔候車廳為 46 FPS、263 Draw Calls 與 110k 三角形。空中勘察會強制顯示五個串流區域，是最重的視角，為 44 FPS、596 Draw Calls 與 173k 三角形。不同裝置的 FPS 仍取決於實際硬體。
+- 1920×1080 的 `20× rebuild audit` 中 GPU Geometry 維持 `114→114`。應用內的 Heap 樣本為 `25→34 MB`，按鈕因此顯示 `Audit review`：三秒觀察窗內 V8 尚未回收重建產生的垃圾。同一輪結束後立即透過 DevTools Protocol 強制回收，Heap 會由 47 MB 降到 24 MB，低於稽核開始前的基準，代表重建之間沒有殘留被取代的舊世界。
 
 ### 實作說明
 
@@ -220,7 +230,9 @@ npm run dev
 
 生成器 `2.8.0` 將 Veyra Archive 圖書館側翼改造成專案第三個可進入室內空間。中空外殼內加入種子化書櫃與書籍、閱讀桌、鉛框玻璃天窗、漂浮書籍、中央檔案桌、發光記憶球、範圍受控的室內燈光，以及供未來互動使用的固定研究員掛點；原有屋頂、窗戶與陽台外觀則完整保留。使用 `L` 快捷鍵或固定場景視角即可直接進入。
 
-世界重建採用原子化、最新請求優先的流程。世界建立已拆成決定性的分段工作，每段都會在瀏覽器完成一次繪製後讓出主執行緒，因此舊世界能持續顯示，已被取代的 Ticket 也能在生成途中透過 `AbortController` 真正取消。半成品從第一個可取消邊界起便由暫存 Root 持有資源，取消時會自動清理。新世界完成建立與驗證後才取代目前場景；共用資源由可重複安全清理的 Registry 去重並釋放。生成失敗時舊世界仍可使用；WebGL Context 恢復後則會觸發已驗證的重建流程。`20× rebuild audit` 會記錄 GPU Geometry，以及瀏覽器提供 Heap Telemetry 時的記憶體樣本。最新一次協調器驗證維持 `65→65` 個 Geometry，Heap 樣本由 `36.9→34.7 MB`。
+生成器 `2.9.0` 為整個世界加入固定種子的常駐角色群體。十六組種子化配置分布於城堡、Lumen Row、The Thorn Veil、Mirror Mere、Umbravale、Orison Ruins、Veilcross Station 與 Veyra Archive，實際依畫質等級啟用八、十二或十六名。所有角色共用斗篷、頭部、帽簷、帽冠與法杖五個 InstancedMesh 批次，因此不論人數多寡都只增加五個 Draw Call。種子化的步速、相位、步幅與朝向會驅動低成本的呼吸、轉身與短距離巡查動作；具名掛點則帶有角色、區域與名稱 Metadata，供後續互動使用。暫停環境動畫與減少動態效果會還原穩定基準姿勢，每次世界重建也會重新綁定系統，不保留舊場景參照。指路燈籠外殼同時從共用金屬 Shader 改為專屬暖銅材質，讓靠近鏡頭的燈籠讀起來是點亮的燈具，而不是未受光的黑色剪影。
+
+世界重建採用原子化、最新請求優先的流程。世界建立已拆成決定性的分段工作，每段都會在瀏覽器完成一次繪製後讓出主執行緒，因此舊世界能持續顯示，已被取代的 Ticket 也能在生成途中透過 `AbortController` 真正取消。半成品從第一個可取消邊界起便由暫存 Root 持有資源，取消時會自動清理。新世界完成建立與驗證後才取代目前場景；共用資源由可重複安全清理的 Registry 去重並釋放。生成失敗時舊世界仍可使用；WebGL Context 恢復後則會觸發已驗證的重建流程。`20× rebuild audit` 會記錄 GPU Geometry，以及瀏覽器提供 Heap Telemetry 時的記憶體樣本。最新一次協調器驗證維持 `114→114` 個 Geometry；稽核結束後強制回收時，Heap 會回到 24 MB，低於稽核前的 25 MB 基準。
 
 城堡 Manifest 是由塔樓、大廳、中庭、城門、走廊、橋梁與移動階梯路線組成的連通拓撲。村莊配置會驗證道路退縮、區域範圍、城堡與湖泊排除、地形坡度、唯一 ID 與建築間距。電影式鏡頭使用與種子相關的 Catmull–Rom 曲線穿過五個地形安全地標，並以二十組回歸種子檢查每個曲線區段。
 
@@ -228,4 +240,4 @@ npm run dev
 
 ### 專案範圍
 
-目前版本包含完成度完整的 Phase 1 垂直切片，以及 Phase 2 的地面碰撞導航、三個可進入室內場景、兩名具有動作的車站角色、第一條完整固定種子跨區域任務、原創程序化聲景與鏡頭距離區域串流。更廣泛的世界 NPC 群體仍屬後續階段規劃。
+目前版本包含完成度完整的 Phase 1 垂直切片，以及 Phase 2 的地面碰撞導航、三個可進入室內場景、兩名具有動作的車站角色、第一條完整固定種子跨區域任務、原創程序化聲景、鏡頭距離區域串流，以及橫跨八個區域的固定種子世界常駐角色群體。
