@@ -83,6 +83,20 @@ test('closed cinematic tour samples stay finite and above terrain', () => {
   }
 });
 
+test('six fixed visual validation views are complete and terrain-safe', () => {
+  const expected = ['castle-hero', 'courtyard-stair', 'village-approach', 'forest-edge', 'lake-shore', 'aerial-orbit'];
+  for (let seedIndex = 1; seedIndex <= 20; seedIndex += 1) {
+    const manifest = createWorldManifest(`MAGIC-${String(seedIndex).padStart(3, '0')}`, 'high');
+    assert.deepEqual(manifest.validationViews.map((view) => view.id), expected);
+    for (const view of manifest.validationViews) {
+      const ground = terrainHeight(view.position[0], view.position[2], manifest.seedHash);
+      assert.ok(view.position.every(Number.isFinite));
+      assert.ok(view.target.every(Number.isFinite));
+      assert.ok(view.position[1] >= ground + 6.8);
+    }
+  }
+});
+
 test('lake ecology scales by quality while preserving one shared boundary', () => {
   const low = createWorldManifest('MAGIC-001', 'low');
   const high = createWorldManifest('MAGIC-001', 'high');
