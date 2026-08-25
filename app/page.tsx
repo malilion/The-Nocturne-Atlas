@@ -22,6 +22,7 @@ import { ResourceRegistry } from './resource-registry';
 import { createAmbientEmbellishments, createCastleEmbellishments, createForestEmbellishments, createVillageEmbellishments } from './world-embellishments';
 import { createWorldManifest, hashSeed, mulberry32, terrainHeight, validateWorldManifest, type QualityTier, type WorldManifest, type WorldZoneType } from './world-core';
 import { createWorldRegions } from './world-regions';
+import { WorldStreamingSystem } from './world-streaming';
 import { advanceStationQuest, getStationQuest, getStationQuestCopy, type StationQuestStep } from './station-quest';
 
 const DEFAULT_SEED = 'MAGIC-001';
@@ -60,6 +61,8 @@ interface PerformanceStats {
   generationMs: number;
   disposedGeometries: number;
   disposedMaterials: number;
+  activeChunks: number;
+  totalChunks: number;
 }
 
 interface SoakAudit {
@@ -793,6 +796,8 @@ export default function Home() {
   const timeOfDayRef = useRef<TimeOfDay>('night');
   const audioEnabledRef = useRef(false);
   const audioSystemRef = useRef<ArcaneAudioSystem | null>(null);
+  const streamingEnabledRef = useRef(true);
+  const streamingSystemRef = useRef<WorldStreamingSystem | null>(null);
   const sceneRequestRef = useRef<LandmarkId | null>(null);
   const fixedPoseRef = useRef<FixedView | null>(null);
   const rebuildLockedRef = useRef(false);
@@ -823,11 +828,12 @@ export default function Home() {
   const [ambientPaused, setAmbientPaused] = useState(false);
   const [timeOfDay, setTimeOfDay] = useState<TimeOfDay>('night');
   const [audioEnabled, setAudioEnabled] = useState(false);
+  const [streamingEnabled, setStreamingEnabled] = useState(true);
   const [fixedView, setFixedView] = useState<FixedView | null>(null);
   const [stationQuestState, setStationQuestState] = useState<{ manifestHash: string; step: StationQuestStep }>({ manifestHash: '', step: 'sealed' });
   const [generationStatus, setGenerationStatus] = useState<'ready' | 'building' | 'error'>('ready');
   const [generationError, setGenerationError] = useState<string | null>(null);
-  const [stats, setStats] = useState<PerformanceStats>({ fps: 60, frameMs: 16.7, calls: 0, triangles: 0, points: 0, lines: 0, geometries: 0, textures: 0, heapMb: null, generationMs: 0, disposedGeometries: 0, disposedMaterials: 0 });
+  const [stats, setStats] = useState<PerformanceStats>({ fps: 60, frameMs: 16.7, calls: 0, triangles: 0, points: 0, lines: 0, geometries: 0, textures: 0, heapMb: null, generationMs: 0, disposedGeometries: 0, disposedMaterials: 0, activeChunks: 5, totalChunks: 5 });
   const [soakAudit, setSoakAudit] = useState<SoakAudit>({ running: false, completed: 0, total: 20, baselineGeometries: 0, finalGeometries: null, baselineHeapMb: null, finalHeapMb: null });
   const [hudOpen, setHudOpen] = useState(false);
 
@@ -901,6 +907,10 @@ export default function Home() {
     let world = createWorld(seedRef.current, qualityRef.current);
     const audioSystem = new ArcaneAudioSystem(world.manifest.seedHash, timeOfDayRef.current);
     audioSystemRef.current = audioSystem;
+    const streamingSystem = new WorldStreamingSystem(world.root, world.manifest, qualityRef.current);
+    streamingSystem.setEnabled(streamingEnabledRef.current);
+    streamingSystemRef.current = streamingSystem;
+    let streamingStatus = streamingSystem.status;
     let lastGenerationMs = performance.now() - initialGenerationStarted;
     let lastDisposal = { geometries: 0, materials: 0 };
     scene.add(world.root);
@@ -986,6 +996,7 @@ export default function Home() {
           }
           cameraManager.setManifest(world.manifest);
           audioSystem.setSeed(world.manifest.seedHash);
+          streamingSystem.setWorld(world.root, world.manifest, rebuildTicket.payload.quality);
           scene.remove(previousWorld.root);
           lastDisposal = disposeObject(previousWorld.root);
           renderer.setPixelRatio(Math.min(window.devicePixelRatio, renderScale()));
@@ -1102,6 +1113,7 @@ export default function Home() {
         fixedView: fixedPoseRef.current,
       });
       if (cameraLocation) setTourLocation(cameraLocation);
+      streamingStatus = streamingSystem.update(camera.position, fixedPoseRef.current?.id === 'aerial-orbit' || camera.position.y > 48);
       renderer.info.reset();
       if (postRef.current) composer.render(delta);
       else renderer.render(scene, camera);
@@ -1141,6 +1153,8 @@ export default function Home() {
           generationMs: Math.round(lastGenerationMs),
           disposedGeometries: lastDisposal.geometries,
           disposedMaterials: lastDisposal.materials,
+          activeChunks: streamingStatus.active,
+          totalChunks: streamingStatus.total,
         });
         framesSinceSample = 0;
         sampleStarted = elapsed;
@@ -1173,6 +1187,8 @@ export default function Home() {
       cameraManager.dispose();
       audioSystem.dispose();
       audioSystemRef.current = null;
+      streamingSystem.dispose();
+      streamingSystemRef.current = null;
       environment.dispose();
       scene.clear();
       composer.dispose();
@@ -1289,6 +1305,12 @@ export default function Home() {
     });
   }, []);
 
+  const toggleWorldStreaming = useCallback((enabled: boolean) => {
+    streamingEnabledRef.current = enabled;
+    setStreamingEnabled(enabled);
+    streamingSystemRef.current?.setEnabled(enabled);
+  }, []);
+
   const enterRealm = useCallback(() => {
     regenerate();
     selectMode('tour');
@@ -1399,7 +1421,7 @@ export default function Home() {
       </aside>}
       <aside className={`performance-hud ${hudOpen ? 'is-open' : ''}`} aria-hidden={!hudOpen}>
         <header><span>Field diagnostics</span><button onClick={() => setHudOpen(false)}>×</button></header>
-        <dl><div><dt>Frame rate</dt><dd>{stats.fps} <small>FPS · {stats.frameMs}MS</small></dd></div><div><dt>Draw calls</dt><dd>{stats.calls}</dd></div><div><dt>Triangles</dt><dd>{Math.round(stats.triangles / 1000)}k</dd></div><div><dt>Points / lines</dt><dd>{stats.points}P · {stats.lines}L</dd></div><div><dt>GPU resources</dt><dd>{stats.geometries}G · {stats.textures}T</dd></div><div><dt>JS heap</dt><dd>{stats.heapMb === null ? 'N/A' : `${stats.heapMb} MB`}</dd></div><div><dt>Generation</dt><dd>{stats.generationMs} <small>MS</small></dd></div><div><dt>Last disposal</dt><dd>{stats.disposedGeometries}G · {stats.disposedMaterials}M</dd></div><div><dt>Castle graph</dt><dd>{manifest.castleGraph.nodes.length}N · {manifest.castleGraph.edges.length}E</dd></div><div><dt>Manifest</dt><dd>{manifest.manifestHash}</dd></div></dl>
+        <dl><div><dt>Frame rate</dt><dd>{stats.fps} <small>FPS · {stats.frameMs}MS</small></dd></div><div><dt>Draw calls</dt><dd>{stats.calls}</dd></div><div><dt>Triangles</dt><dd>{Math.round(stats.triangles / 1000)}k</dd></div><div><dt>Points / lines</dt><dd>{stats.points}P · {stats.lines}L</dd></div><div><dt>GPU resources</dt><dd>{stats.geometries}G · {stats.textures}T</dd></div><div><dt>Streamed zones</dt><dd>{stats.activeChunks}/{stats.totalChunks}</dd></div><div><dt>JS heap</dt><dd>{stats.heapMb === null ? 'N/A' : `${stats.heapMb} MB`}</dd></div><div><dt>Generation</dt><dd>{stats.generationMs} <small>MS</small></dd></div><div><dt>Last disposal</dt><dd>{stats.disposedGeometries}G · {stats.disposedMaterials}M</dd></div><div><dt>Castle graph</dt><dd>{manifest.castleGraph.nodes.length}N · {manifest.castleGraph.edges.length}E</dd></div><div><dt>Manifest</dt><dd>{manifest.manifestHash}</dd></div></dl>
         <section className="quality-controls">
           <label>Quality tier</label>
           <div>{(['low', 'medium', 'high'] as QualityTier[]).map((tier) => <button key={tier} className={quality === tier ? 'active' : ''} onClick={() => selectQuality(tier)} disabled={rebuildLocked}>{tier}</button>)}</div>
@@ -1415,6 +1437,7 @@ export default function Home() {
           <label><span>Zone boundaries</span><input type="checkbox" checked={zoneDebugEnabled} onChange={(event) => setZoneDebugEnabled(event.target.checked)} /></label>
           <label><span>Reduced camera motion</span><input type="checkbox" checked={reducedMotion} onChange={(event) => setReducedMotion(event.target.checked)} /></label>
           <label><span>Ambient animation</span><input type="checkbox" checked={!ambientPaused} onChange={(event) => setAmbientPaused(!event.target.checked)} /></label>
+          <label><span>Distance streaming</span><input type="checkbox" checked={streamingEnabled} onChange={(event) => toggleWorldStreaming(event.target.checked)} /></label>
         </section>
         <section className="diagnostic-sliders">
           <div className="water-control"><label htmlFor="fog-density"><span>Fog density</span><output>{fogDensity.toFixed(1)}×</output></label><input id="fog-density" type="range" min="0.25" max="1.75" step="0.05" value={fogDensity} onChange={(event) => setFogDensity(Number(event.target.value))} /></div>
