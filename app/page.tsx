@@ -1412,7 +1412,7 @@ export default function Home() {
         </a>
         <div className="top-actions">
           {entered && <button className="perf-button" onClick={() => setSeedPanelOpen((open) => !open)} aria-expanded={seedPanelOpen}>{seedPanelOpen ? 'Close seed' : 'Seed'}</button>}
-          <button className={`time-toggle sound-toggle ${audioEnabled ? 'is-on' : ''}`} onClick={toggleAudio} aria-label={`${audioEnabled ? 'Mute' : 'Enable'} procedural soundscape`} aria-pressed={audioEnabled}><span aria-hidden="true">{audioEnabled ? '◉' : '○'}</span>{audioEnabled ? 'Mute' : 'Sound'}</button>
+          <button className={`time-toggle sound-toggle ${audioEnabled ? 'is-on' : ''}`} onClick={toggleAudio} aria-label={`${audioEnabled ? 'Mute' : 'Enable'} ambient soundscape`} aria-pressed={audioEnabled}><span aria-hidden="true">{audioEnabled ? '◉' : '○'}</span>{audioEnabled ? 'Mute' : 'Sound'}</button>
           <button className={`time-toggle is-${timeOfDay}`} onClick={toggleTimeOfDay} aria-label={`Switch to ${timeOfDay === 'night' ? 'day' : 'night'}`} aria-pressed={timeOfDay === 'day'}><span aria-hidden="true">{timeOfDay === 'night' ? '☼' : '☾'}</span>{timeOfDay === 'night' ? 'Day' : 'Night'}</button>
           <button className="perf-button" onClick={() => setHudOpen((open) => !open)} aria-expanded={hudOpen}>HUD</button>
           <div className={`status-pill is-${generationStatus}`}><span /> {generationStatus === 'building' ? 'Weaving world' : generationStatus === 'error' ? 'World retained' : 'World online'}</div>

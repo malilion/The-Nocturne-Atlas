@@ -79,7 +79,7 @@ The paired night and daylight galleries were captured from the deterministic `MA
 - `H` — enter the seeded Great Hall interior
 - `I` — enter Veilcross Station's seeded waiting hall
 - `L` — enter the seeded Veyra Archive library
-- `M` — enable or mute the procedural soundscape
+- `M` — enable or mute the ambient soundscape
 - `N` — switch between day and night
 
 Walk mode keeps the camera at eye height over procedural terrain and applies collision against world bounds, the lake, castle towers, hall and gatehouse, and every rotated village footprint. Blocked diagonal movement attempts an axis slide so the player can move naturally along walls. Orbit mode supports mouse drag and wheel zoom on desktop, plus one-finger drag and two-finger pinch zoom on touch screens. It focuses on the most recently presented landmark instead of jumping to a fixed world center. Automatic rotation pauses while dragging and resumes on release; manual zoom remains available throughout.
@@ -90,7 +90,7 @@ The same seed always recreates the same world. The HUD reports live frame rate a
 
 ## Visual and environment controls
 
-The Day/Night control transitions the complete lighting model: sky, fog, stars, celestial light, water highlights, fill light, exposure, bloom, and the optional procedural soundscape. Night mode combines a moon key light, shadow-free cool fill, lifted hemispheric ambience, a deeper seed-aware drone, and shallower fog so silhouettes retain detail without losing their moonlit mood. Sound remains muted until the user enables it.
+The Day/Night control transitions the complete lighting model: sky, fog, stars, celestial light, water highlights, fill light, exposure, bloom, and the optional ambient soundscape. Night mode combines a moon key light, shadow-free cool fill, lifted hemispheric ambience, a louder ambient mix, and shallower fog so silhouettes retain detail without losing their moonlit mood. Sound remains muted until the user enables it.
 
 The HUD includes Low, Medium, and High quality tiers, atmospheric fog, a master post-processing switch, independent color grade, HDR Bloom and vignette controls, FXAA, optional SSAO on Medium/High, dynamic shadows, zone diagnostics, reduced motion, ambient animation, and distance streaming. Fog density, Bloom strength, and water motion are adjustable live. High quality supports 1,100 instanced trees, while deterministic near/far forest batches and five camera-aware streamed regions reduce distant geometry and shadow cost. The HUD reports active streamed zones in real time.
 
@@ -121,7 +121,7 @@ Generator `2.2.0` converts Veilcross Station's solid terminal mass into the proj
 
 Generator `2.3.0` populates those anchors with procedural Clerk Elyra and conductor figures, each carrying explicit interaction metadata and a luminous quest marker. The waiting-hall panel now forms a finite three-action quest: decode the board, speak with the clerk, and claim the correct passage stamp. Destination, notice, request, and reward are selected deterministically from the active world seed; rebuilding from another seed resets the quest without stale state leaking across worlds.
 
-Generator `2.4.0` adds an original Web Audio soundscape generated entirely at runtime. Each seed controls the low drone, harmonic overtone, and filtered wind bed; day and night shift frequency, brightness, and master level without restarting the audio graph. The three Veilcross quest actions produce progressively richer synthesized chimes. Audio is opt-in through the top-bar `Sound` control or `M`, follows world rebuilds, and owns an explicit cleanup lifecycle.
+Generator `2.4.0` adds an original Web Audio ambient soundscape: a looping original music bed ("Beyond the Mist") mixed through the Web Audio graph, with day and night shifting the master level without restarting playback. The three Veilcross quest actions produce progressively richer synthesized chimes. Audio is opt-in through the top-bar `Sound` control or `M`, follows world rebuilds, and owns an explicit cleanup lifecycle.
 
 Generator `2.5.0` adds camera-distance world streaming for five independently owned detail regions: castle embellishments, village embellishments, Umbravale, Orison Ruins, and Veilcross Station. Quality tiers define activation and release distances, with hysteresis preventing boundary flicker. Aerial surveys and high-altitude flight force every region visible, while disabling the HUD toggle restores the complete scene immediately. Core terrain, primary architecture, water, forest, and ambience remain continuously available.
 
@@ -141,7 +141,7 @@ No third-party models, textures, characters, names, or franchise assets are incl
 
 ## Scope
 
-This repository contains the complete original vertical slice plus grounded collision navigation, three enterable interiors, two animated station characters, the first complete deterministic cross-region quest, an original procedural soundscape, camera-distance region streaming, and a deterministic world-wide resident cast spanning all eight regions.
+This repository contains the complete original vertical slice plus grounded collision navigation, three enterable interiors, two animated station characters, the first complete deterministic cross-region quest, an original ambient soundscape, camera-distance region streaming, and a deterministic world-wide resident cast spanning all eight regions.
 
 ## License
 
