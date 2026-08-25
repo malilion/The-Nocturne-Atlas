@@ -61,7 +61,7 @@ test('manifest validation rejects a dangling castle route', () => {
 
 test('camera landmarks are deterministic, complete, and terrain-safe', () => {
   const manifest = createWorldManifest('MAGIC-001', 'high');
-  assert.equal(manifest.generatorVersion, '2.8.0');
+  assert.equal(manifest.generatorVersion, '2.9.0');
   assert.deepEqual(manifest.cameraLandmarks.map((landmark) => landmark.id), ['castle', 'village', 'lake', 'forest', 'tower', 'mountains', 'ruins', 'station']);
   assert.equal(new Set(manifest.cameraLandmarks.map((landmark) => landmark.label)).size, 8);
   for (const landmark of manifest.cameraLandmarks) {
