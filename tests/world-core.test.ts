@@ -51,6 +51,15 @@ test('camera landmarks are deterministic, complete, and terrain-safe', () => {
   }
 });
 
+test('lake ecology scales by quality while preserving one shared boundary', () => {
+  const low = createWorldManifest('MAGIC-001', 'low');
+  const high = createWorldManifest('MAGIC-001', 'high');
+  assert.ok(high.counts.reeds > low.counts.reeds);
+  assert.ok(high.counts.shoreRocks > low.counts.shoreRocks);
+  assert.deepEqual(low.zones.find((zone) => zone.type === 'lake'), high.zones.find((zone) => zone.type === 'lake'));
+  assert.equal(low.zones.find((zone) => zone.type === 'lake')?.radius, 26);
+});
+
 test('generation source never calls Math.random', async () => {
   const source = await readFile(new URL('../app/page.tsx', import.meta.url), 'utf8');
   assert.equal(source.includes('Math.random('), false);

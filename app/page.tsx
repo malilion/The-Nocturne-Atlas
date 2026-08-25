@@ -138,16 +138,19 @@ function createWorld(seedText: string, quality: QualityTier) {
   const waterMaterial = new THREE.ShaderMaterial({
     transparent: true,
     depthWrite: false,
-    uniforms: { uTime: { value: 0 }, uMoon: { value: new THREE.Color(0xb9cbff) } },
+    uniforms: { uTime: { value: 0 }, uWaveStrength: { value: 1 }, uMoon: { value: new THREE.Color(0xb9cbff) } },
     vertexShader: `
       uniform float uTime;
+      uniform float uWaveStrength;
       varying vec3 vWorld;
       varying float vWave;
+      varying float vRadius;
       void main() {
         vec3 p = position;
-        float wave = sin(p.x * .22 + uTime * .55) * .18 + cos(p.y * .28 - uTime * .42) * .12;
+        float wave = (sin(p.x * .22 + uTime * .55) * .18 + cos(p.y * .28 - uTime * .42) * .12) * uWaveStrength;
         p.z += wave;
         vWave = wave;
+        vRadius = length(p.xy) / 26.0;
         vec4 world = modelMatrix * vec4(p, 1.0);
         vWorld = world.xyz;
         gl_Position = projectionMatrix * viewMatrix * world;
@@ -157,13 +160,18 @@ function createWorld(seedText: string, quality: QualityTier) {
       uniform vec3 uMoon;
       varying vec3 vWorld;
       varying float vWave;
+      varying float vRadius;
       void main() {
         vec3 viewDir = normalize(cameraPosition - vWorld);
         float fresnel = pow(1.0 - max(dot(viewDir, vec3(0.0, 1.0, 0.0)), 0.0), 2.4);
-        vec3 deep = vec3(.025, .09, .12);
-        vec3 edge = vec3(.09, .20, .24);
-        vec3 color = mix(deep, edge, fresnel) + uMoon * pow(max(vWave + .12, 0.0), 5.0) * 2.0;
-        gl_FragColor = vec4(color, .78 + fresnel * .16);
+        float shore = smoothstep(0.64, 1.0, vRadius);
+        float moonSparkle = pow(max(vWave + 0.16, 0.0), 4.0) * pow(max(dot(viewDir, normalize(vec3(-0.45, 0.8, -0.35))), 0.0), 3.0);
+        float foamBand = smoothstep(0.88, 0.97, vRadius) * (0.5 + 0.5 * sin(vWorld.x * 1.4 + vWorld.z * 1.1 + vWave * 8.0));
+        vec3 deep = vec3(.012, .055, .085);
+        vec3 shelf = vec3(.07, .19, .20);
+        vec3 color = mix(deep, shelf, shore * 0.76 + fresnel * 0.35);
+        color += uMoon * moonSparkle * 1.8 + vec3(0.22, 0.32, 0.31) * foamBand * 0.14;
+        gl_FragColor = vec4(color, .76 + fresnel * .16 + shore * .05);
       }
     `,
   });
@@ -171,6 +179,51 @@ function createWorld(seedText: string, quality: QualityTier) {
   lake.rotation.x = -Math.PI / 2;
   lake.position.set(28, -2.1, 18);
   root.add(lake);
+
+  const shorelineRandom = mulberry32(hashSeed(`${manifest.seed}::lake/shoreline`));
+  const shoreMatrix = new THREE.Matrix4();
+  const shoreQuaternion = new THREE.Quaternion();
+  const shoreScale = new THREE.Vector3();
+  const shorePosition = new THREE.Vector3();
+  const shoreRocks = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(0.85, 0), stone, manifest.counts.shoreRocks);
+  for (let i = 0; i < manifest.counts.shoreRocks; i += 1) {
+    const angle = (i / manifest.counts.shoreRocks) * Math.PI * 2 + (shorelineRandom() - 0.5) * 0.18;
+    const radius = 24.4 + shorelineRandom() * 3.8;
+    const x = 28 + Math.cos(angle) * radius;
+    const z = 18 + Math.sin(angle) * radius;
+    const scale = 0.45 + shorelineRandom() * 1.2;
+    shorePosition.set(x, Math.max(-2.0, terrainHeight(x, z, seed)) + scale * 0.35, z);
+    shoreQuaternion.setFromEuler(new THREE.Euler(shorelineRandom() * 0.4, shorelineRandom() * Math.PI, shorelineRandom() * 0.35));
+    shoreScale.set(scale * 1.4, scale * 0.75, scale);
+    shoreMatrix.compose(shorePosition, shoreQuaternion, shoreScale);
+    shoreRocks.setMatrixAt(i, shoreMatrix);
+  }
+  shoreRocks.castShadow = true;
+  shoreRocks.receiveShadow = true;
+  root.add(shoreRocks);
+
+  const reedGeometry = new THREE.ConeGeometry(0.055, 1, 5);
+  const reedMaterial = new THREE.MeshStandardMaterial({ color: 0x344b35, roughness: 0.92 });
+  const reeds = new THREE.InstancedMesh(reedGeometry, reedMaterial, manifest.counts.reeds);
+  for (let i = 0; i < manifest.counts.reeds; i += 1) {
+    const angle = shorelineRandom() * Math.PI * 2;
+    const radius = 22.8 + shorelineRandom() * 2.6;
+    const x = 28 + Math.cos(angle) * radius;
+    const z = 18 + Math.sin(angle) * radius;
+    const height = 0.55 + shorelineRandom() * 1.15;
+    shorePosition.set(x, -2.06 + height * 0.5, z);
+    shoreQuaternion.setFromEuler(new THREE.Euler((shorelineRandom() - 0.5) * 0.18, angle, (shorelineRandom() - 0.5) * 0.14));
+    shoreScale.set(0.8 + shorelineRandom() * 0.5, height, 0.8 + shorelineRandom() * 0.5);
+    shoreMatrix.compose(shorePosition, shoreQuaternion, shoreScale);
+    reeds.setMatrixAt(i, shoreMatrix);
+  }
+  root.add(reeds);
+
+  const island = new THREE.Mesh(new THREE.CylinderGeometry(4.3, 5.8, 1.5, 32), createTerrainMaterial(hashSeed(`${manifest.seed}::lake/island`)));
+  island.position.set(34, -1.72, 13.5);
+  island.rotation.y = shorelineRandom() * Math.PI;
+  island.receiveShadow = true;
+  root.add(island);
 
   const trunkGeometry = new THREE.CylinderGeometry(0.22, 0.42, 3.5, 6);
   const trunkMaterial = createWoodMaterial(hashSeed(`${manifest.seed}::forest/wood`));
@@ -384,6 +437,7 @@ export default function Home() {
   const zoneDebugRef = useRef(false);
   const tourPausedRef = useRef(false);
   const reducedMotionRef = useRef(false);
+  const waterMotionRef = useRef(1);
   const [seed, setSeed] = useState(DEFAULT_SEED);
   const [activeSeed, setActiveSeed] = useState(DEFAULT_SEED);
   const [copied, setCopied] = useState(false);
@@ -397,6 +451,7 @@ export default function Home() {
   const [tourLocation, setTourLocation] = useState<WorldManifest['cameraLandmarks'][number]>(() => createWorldManifest(DEFAULT_SEED, 'medium').cameraLandmarks[0]);
   const [tourPaused, setTourPaused] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
+  const [waterMotion, setWaterMotion] = useState(1);
   const [generationStatus, setGenerationStatus] = useState<'ready' | 'building' | 'error'>('ready');
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [stats, setStats] = useState<PerformanceStats>({ fps: 60, calls: 0, triangles: 0 });
@@ -410,6 +465,7 @@ export default function Home() {
   useEffect(() => { zoneDebugRef.current = zoneDebugEnabled; }, [zoneDebugEnabled]);
   useEffect(() => { tourPausedRef.current = tourPaused; }, [tourPaused]);
   useEffect(() => { reducedMotionRef.current = reducedMotion; }, [reducedMotion]);
+  useEffect(() => { waterMotionRef.current = waterMotion; }, [waterMotion]);
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -545,6 +601,7 @@ export default function Home() {
       renderer.toneMappingExposure = postRef.current ? 1.05 : 0.82;
       bloomPass.strength = qualityRef.current === 'low' ? 0.28 : qualityRef.current === 'medium' ? 0.48 : 0.62;
       world.waterMaterial.uniforms.uTime.value = elapsed;
+      world.waterMaterial.uniforms.uWaveStrength.value = waterMotionRef.current;
       world.magicMaterial.uniforms.uTime.value = elapsed;
       world.zoneDebug.visible = zoneDebugRef.current;
       const stairPhase = (elapsed % 16) / 16;
@@ -772,6 +829,10 @@ export default function Home() {
           <label><span>Cinematic grade</span><input type="checkbox" checked={postEnabled} onChange={(event) => setPostEnabled(event.target.checked)} /></label>
           <label><span>Zone boundaries</span><input type="checkbox" checked={zoneDebugEnabled} onChange={(event) => setZoneDebugEnabled(event.target.checked)} /></label>
           <label><span>Reduced camera motion</span><input type="checkbox" checked={reducedMotion} onChange={(event) => setReducedMotion(event.target.checked)} /></label>
+        </section>
+        <section className="water-control">
+          <label htmlFor="water-motion"><span>Water motion</span><output>{waterMotion.toFixed(1)}×</output></label>
+          <input id="water-motion" type="range" min="0" max="1.6" step="0.1" value={waterMotion} onChange={(event) => setWaterMotion(Number(event.target.value))} />
         </section>
         <p>Generator {manifest.generatorVersion} · {manifest.counts.trees} trees<br />WebGL 2 · Seed {manifest.seedHash}</p>
         <button className="manifest-copy" onClick={copyManifest}>{manifestCopied ? 'Manifest copied' : 'Copy world manifest'}</button>
