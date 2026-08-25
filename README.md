@@ -1,28 +1,38 @@
-# The Nocturne Atlas
+# The Nocturne Atlas / 夜曲輿圖
 
-An original, seed-driven 3D wizarding world built with Three.js and TypeScript. A seed deterministically shapes the terrain, castle proportions, village, lake, forest, floating lights, and cinematic composition.
+[English](#english) · [繁體中文](#繁體中文)
 
-## Scene gallery
+An original, seed-driven 3D wizarding world built with Three.js and TypeScript.
 
-Captured from the deterministic `MAGIC-001` world with generator `1.7.0` at Medium quality in night mode. Each image is an actual in-app scene-switch destination; the tour remains paused after every transition.
+使用 Three.js 與 TypeScript 打造的原創種子驅動 3D 魔法世界。
 
-| 1 · Castle of Veyra | 2 · Lumen Row village |
+## Scene Gallery / 場景圖庫
+
+Captured from the deterministic `MAGIC-001` world with generator `1.7.0`, Medium quality, and night mode. Every image is an actual scene-switch destination with the tour paused after arrival.
+
+以下畫面擷取自固定種子 `MAGIC-001`、生成器 `1.7.0`、中等畫質與夜間模式。每張圖片都是實際可切換的場景目的地，抵達後導覽會保持暫停。
+
+| 1 · Castle of Veyra / 維拉城堡 | 2 · Lumen Row / 流明街村莊 |
 | --- | --- |
 | ![Castle of Veyra scene with gothic towers and floating candles](docs/screenshots/castle.png) | ![Lumen Row village approach among castle walls and forest](docs/screenshots/village.png) |
 
-| 3 · Mirror Mere lake | 4 · The Thorn Veil forest |
+| 3 · Mirror Mere / 鏡月湖 | 4 · The Thorn Veil / 荊棘帷幕森林 |
 | --- | --- |
 | ![Mirror Mere moonlit shoreline and glowing wisps](docs/screenshots/lake.png) | ![The Thorn Veil procedural forest with fireflies](docs/screenshots/forest.png) |
 
-| 5 · Astral Spire | 6 · Moving Stair courtyard |
+| 5 · Astral Spire / 星界尖塔 | 6 · Moving Stair / 移動階梯中庭 |
 | --- | --- |
 | ![Astral Spire upper observatory and floating candles](docs/screenshots/tower.png) | ![Moving Stair courtyard connection study](docs/screenshots/courtyard-stair.png) |
 
-### 7 · Aerial Survey
+### 7 · Aerial Survey / 空中勘察
 
 ![Aerial survey showing the deterministic world zoning overview](docs/screenshots/aerial.png)
 
-## Explore
+---
+
+## English
+
+### Explore
 
 - `T` — cinematic tour
 - `F` — free fly; click the world, then use `WASD`, `Q`/`E`, and `Shift`
@@ -31,54 +41,115 @@ Captured from the deterministic `MAGIC-001` world with generator `1.7.0` at Medi
 - `R` — generate a new seed
 - `Esc` — release the pointer in free-fly mode
 - `Space` — pause or resume the cinematic tour
-- `1`–`5` — jump directly to Castle, Village, Lake, Forest, or Tower
-- `6` / `7` — fixed Courtyard Stair or Aerial validation view
+- `1`–`5` — jump to Castle, Village, Lake, Forest, or Tower
+- `6` / `7` — open the Courtyard Stair or Aerial fixed view
 - `N` — switch between day and night
 
-Orbit mode supports mouse drag and wheel zoom on desktop, plus one-finger drag and two-finger pinch zoom on touch screens. It adopts the most recently presented landmark as its focus instead of jumping to a fixed world center. Starting automatic rotation switches directly to Orbit; dragging temporarily pauses automatic motion and releasing resumes it, while manual zoom remains available throughout.
+Orbit mode supports mouse drag and wheel zoom on desktop, plus one-finger drag and two-finger pinch zoom on touch screens. It focuses on the most recently presented landmark instead of jumping to a fixed world center. Automatic rotation pauses while dragging and resumes on release; manual zoom remains available throughout.
 
-The seed panel accepts any text. Re-entering the same seed recreates the same world. The HUD shows live frame and frame time, draw calls, triangles, points/lines, GPU geometry/texture ownership, generation time, optional browser JS heap data, and the resources released by the last rebuild.
+`Enter realm` starts the experience, collapses the landing panel, and parks the camera on the castle. Use `Resume` or `Space` to begin the tour. The scene switcher provides direct buttons for the castle, village, lake, forest, tower, courtyard staircase, and aerial survey. Every transition stops at its destination until the tour is explicitly resumed.
 
-`Enter realm` starts the immersive experience and collapses the landing copy and seed panel. The camera remains parked on the castle instead of automatically rotating; use `Resume` or `Space` to start the cinematic tour. After entering, use the `Seed` control in the top bar to reopen the panel; its primary action then becomes `Rebuild realm`.
+The same seed always recreates the same world. The HUD reports live frame rate and frame time, draw calls, triangles, GPU resource ownership, generation time, optional JavaScript heap data, and resources released by the latest rebuild.
 
-After entering, the landmark switcher above the footer provides direct scene buttons for the castle, village, lake, forest, tower, courtyard staircase, and aerial survey. Each scene transition stops at its destination until the tour is explicitly resumed. The Courtyard and Aerial controls use fixed seed-aware validation poses; the manifest also records Castle Hero, Village Approach, Forest Edge, and Lake Shore poses for repeatable regression captures. The Day/Night control in the top bar transitions the complete environment lighting model, including sky, fog, stars, celestial light, water highlights, and exposure. Night mode combines moon key light, a shadow-free cool fill, lifted hemispheric ambience, and shallower near fog so silhouettes retain detail without losing the moonlit mood.
+### Visual and environment controls
 
-The HUD also exposes real Low, Medium, and High quality tiers, atmospheric fog, HDR Bloom/cinematic grading, optional SSAO on Medium/High, dynamic shadows, zone-boundary diagnostics, a unified ambient-animation switch, and the deterministic world manifest. Fog density, Bloom strength, and water motion are adjustable live. Quality tiers change render scale, Bloom strength, and instance density rather than acting as labels only; High supports 1,100 instanced trees. Forest trees are split into deterministic near/far batches: near trees use fuller silhouettes and quality-gated shadows, while far trees use four-sided geometry and never cast shadows. The `20× rebuild audit` repeatedly performs atomic swaps and reports the live GPU geometry delta; a clean result allows a one-geometry tolerance for Three.js renderer housekeeping.
+The Day/Night control transitions the complete lighting model: sky, fog, stars, celestial light, water highlights, fill light, exposure, and bloom. Night mode combines a moon key light, shadow-free cool fill, lifted hemispheric ambience, and shallower fog so silhouettes retain detail without losing their moonlit mood.
 
-## Local development
+The HUD includes Low, Medium, and High quality tiers, atmospheric fog, HDR Bloom and cinematic grading, optional SSAO on Medium/High, dynamic shadows, zone diagnostics, reduced motion, and a unified ambient-animation switch. Fog density, Bloom strength, and water motion are adjustable live. High quality supports 1,100 instanced trees, while deterministic near/far forest batches reduce distant geometry and shadow cost.
+
+### Local development
 
 ```bash
 npm install
 npm run dev
 ```
 
-Create a production build with `npm run build`.
+Create a production build with `npm run build`. Run the deterministic regression suite with `npm test`, and run static checks with `npm run lint`.
 
-Run the deterministic regression suite with `npm test`. It checks manifest repeatability, forked seed streams, twenty fixed seeds, castle-graph connectivity, dangling routes, finite terrain samples, and the ban on `Math.random()` inside generation code.
+### Validation evidence
 
-## Validation evidence
+- Seven fixed destinations were browser-checked and captured from the current generator.
+- Village, Forest, Tower, and Moving Stair cameras satisfy presentation-clearance contracts across twenty regression seeds.
+- Day/night transition, automatic orbit, mouse drag, and wheel zoom were exercised in the local WebGL experience. Touch input shares the tested orbit constraints and adds one-finger drag plus two-finger pinch.
+- All 25 deterministic, lifecycle, shader, environment, camera, and presentation tests pass. Coverage includes night fill ownership, exposure, fog density, daylight transition, shadow toggles, landmark-relative orbit focus, drag-paused automatic rotation, and idempotent cleanup.
+- Production build and lint complete without errors. The build currently reports a non-blocking warning for the Three.js client chunk exceeding 500 kB after minification.
+- A sampled Medium-quality view reports 146 draw calls, 55k triangles, and 70 geometries, within the Phase 1 draw-call budget. Final 1080p FPS qualification remains hardware-dependent.
 
-- Seven fixed scene destinations were browser-checked and captured from the current generator; Village, Forest, Tower, and Moving Stair use presentation-clearance camera contracts across twenty regression seeds.
-- Day/night transition, automatic orbit, mouse drag, and wheel zoom were exercised in the local WebGL experience. Touch handling shares the tested orbit rotation and zoom constraints and adds one-finger drag plus two-finger pinch input.
-- The automated suite contains 25 deterministic, lifecycle, shader, environment, camera, and presentation tests. Environment coverage includes night fill ownership, exposure, fog density, daylight transition, shadow toggles, and idempotent cleanup; camera coverage includes landmark-relative orbit focus and drag-paused automatic rotation. Production build and lint complete without errors.
-- Medium quality stays within the Phase 1 draw-call budget in sampled views; the current local sample reports 146 draw calls, 55k triangles, and 70 geometries. Final 1080p FPS qualification remains hardware-dependent and should be measured on the intended GPU without browser-automation throttling.
+### Implementation notes
 
-## Implementation notes
+The experience uses direct Three.js scene, camera, renderer, geometry, shader, instancing, and GPU lifecycle management. Dedicated camera and environment systems own input listeners, tour/fly/orbit transitions, day/night lighting, sky, fog, stars, celestial objects, water highlights, exposure, bloom, and shadow state through explicit update and disposal lifecycles.
 
-The experience uses direct Three.js scene, camera, renderer, geometry, shader, instancing, and GPU resource lifecycle management. Dedicated camera and environment systems own input listeners, tour/fly/orbit transitions, sky, fog, day/night lights, stars, the celestial orb, water highlights, exposure, bloom, and shadow state through explicit update/dispose lifecycles. It contains no third-party models, textures, characters, names, or franchise assets. The procedural water, architecture, vegetation, village, and ambience are generated at runtime.
+Terrain, castle stone, slate roofs, tree trunks, and village timber use seed-aware world-space procedural materials. Animated arcane wisps run entirely in a GPU point shader. The lake, shoreline rocks, reeds, and island share one deterministic boundary; its shader provides analytic waves, depth-to-shore color, Fresnel response, celestial highlights, and shoreline foam.
 
-Terrain, castle stone, slate roofs, tree trunks, and village timber use seed-aware world-space procedural materials. Animated arcane wisps run entirely in a GPU point shader with per-point phases; no image textures or per-particle CPU updates are required.
+Regeneration uses an atomic swap: a new world is constructed and validated before it replaces the active root. Shared resources are deduplicated through an idempotent registry before disposal. Failed generation leaves the existing world visible, while WebGL context restoration triggers a validated rebuild. The `20× rebuild audit` tracks GPU geometry and browser heap samples when heap telemetry is available.
 
-The lake, shoreline rocks, reeds, and island share a single deterministic boundary. The water shader includes analytic waves, depth-to-shore color, Fresnel response, moon highlights, and a restrained shoreline foam band. Water motion is adjustable live from the HUD, while shore ecology density follows the selected quality tier.
+The castle manifest is a connected topology of towers, hall, courtyard, gate, corridors, bridges, and a moving-stair route. Village placement validates road setback, zone membership, castle/lake exclusion, terrain slope, unique IDs, and footprint separation. The cinematic camera follows seed-aware Catmull–Rom curves through five terrain-safe landmarks, with every segment checked across twenty regression seeds.
 
-World regeneration uses an atomic swap: a new world is constructed and validated before replacing the active root. Shared geometry and material ownership is deduplicated through an idempotent resource registry before disposal. If generation fails, the existing world remains visible and usable.
+No third-party models, textures, characters, names, or franchise assets are included. All architecture, terrain, water, vegetation, village structures, and ambience are generated at runtime.
 
-WebGL context loss pauses rendering and surfaces a recoverable status; context restoration triggers a validated atomic rebuild. The rebuild audit records both GPU geometry and browser heap samples when the runtime exposes heap telemetry.
+### Scope
 
-The castle manifest is a connected topology of towers, hall, courtyard, gate, corridors, bridges, and one moving-stair route. Runtime validation rejects missing endpoints, disconnected nodes, unsafe camera landmarks, invalid zone boundaries, or mismatched procedural counts. The staircase rotates between two physical landing platforms with quaternion interpolation.
+This repository is a polished Phase 1 vertical slice. Collision, interiors, NPCs, quests, original audio, and world streaming are planned follow-up work rather than incomplete Phase 1 requirements.
 
-Village buildings are planned in their own namespaced seed stream before geometry creation. Each manifest record includes footprint, height, road-facing rotation, side, and roof dimensions. Validation enforces road setback, zone membership, castle/lake exclusion, terrain slope budget, unique IDs, and pairwise footprint separation; increasing village density preserves the earlier buildings instead of cascading into unrelated systems.
+---
 
-The cinematic camera follows seed-aware Catmull–Rom position and look-target curves through five terrain-safe landmarks: castle, village, lake, forest, and tower detail. Validation samples every segment of the closed tour across twenty regression seeds and requires terrain clearance along the route, not only at its control points. Returning from Free Fly or Orbit uses a smooth handoff from the current view. A reduced-motion option slows the tour and lengthens the handoff.
+## 繁體中文
 
-This is a polished Phase 1 vertical slice. Collision, interiors, NPCs, quests, audio, and world streaming are intentionally outside its scope.
+### 操作方式
+
+- `T` — 電影式自動導覽
+- `F` — 自由飛行；點擊世界後使用 `WASD`、`Q`/`E` 與 `Shift`
+- `O` — 環繞視角；拖曳旋轉、滾輪縮放
+- `A` — 開啟或停止自動環繞旋轉
+- `R` — 產生新的隨機種子
+- `Esc` — 在自由飛行模式解除滑鼠鎖定
+- `Space` — 暫停或繼續電影式導覽
+- `1`–`5` — 直接切換至城堡、村莊、湖泊、森林或高塔
+- `6` / `7` — 切換至中庭階梯或空中勘察固定視角
+- `N` — 切換白天與夜晚
+
+環繞模式在桌面支援滑鼠拖曳與滾輪縮放，在觸控裝置支援單指拖曳與雙指縮放。進入環繞模式時會以最近瀏覽的地標為中心，不會跳回固定的世界中心。拖曳期間自動旋轉會暫停，放開後自然恢復，過程中仍可隨時縮放。
+
+按下 `Enter realm` 會進入世界、收合起始面板，並將鏡頭停在城堡。使用 `Resume` 或 `Space` 才會開始導覽。場景切換列提供城堡、村莊、湖泊、森林、高塔、中庭階梯與空中勘察按鍵；每次轉場抵達後都會停住，直到使用者主動恢復導覽。
+
+輸入相同種子一定會重建出相同世界。HUD 會顯示即時幀率、幀時間、Draw Calls、三角形數量、GPU 資源、生成時間、瀏覽器支援時的 JavaScript Heap，以及上一次重建所釋放的資源。
+
+### 畫面與環境控制
+
+日夜按鍵會完整轉換天空、霧、星光、天體光源、水面高光、補光、曝光與 Bloom。夜間使用月光主光源、無陰影冷色補光、提高的半球環境光與較淺的霧，讓城堡與地形輪廓更清楚，同時保留月夜氛圍。
+
+HUD 提供低、中、高三種實際畫質等級，以及大氣霧、HDR Bloom 與電影調色、中高畫質 SSAO、動態陰影、區域診斷、減少動態效果和環境動畫總開關。霧密度、Bloom 強度與水面動態可即時調整。高畫質最多支援 1,100 棵實例化樹木；森林則使用固定種子的近／遠景批次，降低遠距幾何與陰影成本。
+
+### 本機開發
+
+```bash
+npm install
+npm run dev
+```
+
+使用 `npm run build` 建立正式版本，使用 `npm test` 執行固定種子回歸測試，使用 `npm run lint` 執行靜態檢查。
+
+### 驗證結果
+
+- 七個固定場景目的地皆已在目前的生成器中實際檢查並截圖。
+- 村莊、森林、高塔與移動階梯鏡頭，在二十組回歸種子中皆符合取景淨空規則。
+- 日夜切換、自動環繞、滑鼠拖曳與滾輪縮放已在本機 WebGL 場景操作驗證。觸控操作沿用相同環繞限制，並加入單指拖曳與雙指縮放。
+- 25 項固定性、生命週期、Shader、環境、鏡頭與場景呈現測試全數通過。涵蓋夜間補光管理、曝光、霧密度、日夜轉換、陰影切換、地標中心環繞、拖曳暫停自轉與重複清理安全性。
+- 正式建置與 Lint 均無錯誤。目前僅有 Three.js 用戶端區塊壓縮後超過 500 kB 的非阻擋警告。
+- 中等畫質抽樣畫面為 146 Draw Calls、55k 三角形與 70 個 Geometry，符合 Phase 1 的 Draw Call 預算。最終 1080p FPS 仍需在目標硬體上確認。
+
+### 實作說明
+
+本體直接使用 Three.js 管理場景、鏡頭、Renderer、幾何、Shader、Instancing 與 GPU 資源生命週期。獨立的鏡頭與環境系統透過明確的更新及清理流程，管理輸入事件、導覽／自由飛行／環繞切換、日夜照明、天空、霧、星光、天體、水面高光、曝光、Bloom 與陰影狀態。
+
+地形、城堡石材、石板屋頂、樹幹與村莊木材均使用與種子相關的世界座標程序材質。魔法光點完全在 GPU Point Shader 中運作。湖泊、水岸岩石、蘆葦與島嶼共用同一條固定邊界；水面 Shader 提供解析波浪、深淺水色、Fresnel 反射、天體高光與岸邊泡沫。
+
+世界重建採用原子交換：新世界完成建立與驗證後才取代目前場景。共用資源由可重複安全清理的 Registry 去重並釋放。生成失敗時舊世界仍可使用；WebGL Context 恢復後則會觸發已驗證的重建流程。`20× rebuild audit` 會記錄 GPU Geometry，以及瀏覽器提供 Heap Telemetry 時的記憶體樣本。
+
+城堡 Manifest 是由塔樓、大廳、中庭、城門、走廊、橋梁與移動階梯路線組成的連通拓撲。村莊配置會驗證道路退縮、區域範圍、城堡與湖泊排除、地形坡度、唯一 ID 與建築間距。電影式鏡頭使用與種子相關的 Catmull–Rom 曲線穿過五個地形安全地標，並以二十組回歸種子檢查每個曲線區段。
+
+專案沒有使用任何第三方模型、貼圖、角色、名稱或系列作品資產。建築、地形、水體、植被、村莊與環境效果都在執行時生成。
+
+### 專案範圍
+
+目前版本是完成度完整的 Phase 1 垂直切片。碰撞、室內空間、NPC、任務、原創音效與世界串流屬於後續階段規劃，不是尚未完成的 Phase 1 需求。
