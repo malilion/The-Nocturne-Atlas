@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { SSAOPass } from 'three/addons/postprocessing/SSAOPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { createRoofMaterial, createStoneMaterial, createTerrainMaterial, createWoodMaterial } from './procedural-materials';
 import { createWorldManifest, hashSeed, mulberry32, terrainHeight, validateWorldManifest, type QualityTier, type WorldManifest } from './world-core';
@@ -256,20 +257,31 @@ function createWorld(seedText: string, quality: QualityTier) {
   const canopies = new THREE.InstancedMesh(canopyGeometry, canopyMaterial, manifest.counts.trees);
   const matrix = new THREE.Matrix4();
   const quaternion = new THREE.Quaternion();
+  const treeUp = new THREE.Vector3(0, 1, 0);
   const scale = new THREE.Vector3();
   const position = new THREE.Vector3();
   for (let i = 0; i < manifest.counts.trees; i += 1) {
     let x = 0;
     let z = 0;
-    do {
+    let placementFound = false;
+    for (let attempt = 0; attempt < 12; attempt += 1) {
       const angle = random() * Math.PI * 2;
       const distance = 32 + random() * 39;
       x = Math.cos(angle) * distance;
       z = Math.sin(angle) * distance;
-    } while ((x - 28) ** 2 + (z - 18) ** 2 < 1050 || (x + 7) ** 2 + (z + 4) ** 2 < 800);
+      if ((x - 28) ** 2 + (z - 18) ** 2 >= 1050 && (x + 7) ** 2 + (z + 4) ** 2 >= 800) {
+        placementFound = true;
+        break;
+      }
+    }
+    if (!placementFound) {
+      const fallbackAngle = i * 2.399963229728653;
+      x = Math.cos(fallbackAngle) * 70;
+      z = Math.sin(fallbackAngle) * 70;
+    }
     const y = terrainHeight(x, z, seed);
     const treeScale = 0.7 + random() * 1.25;
-    quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), random() * Math.PI * 2);
+    quaternion.setFromAxisAngle(treeUp, random() * Math.PI * 2);
     position.set(x, y + (3.5 * treeScale) / 2, z);
     scale.set(treeScale, treeScale, treeScale);
     matrix.compose(position, quaternion, scale);
@@ -469,6 +481,10 @@ export default function Home() {
   const qualityRef = useRef<QualityTier>('medium');
   const fogRef = useRef(true);
   const postRef = useRef(true);
+  const aoRef = useRef(false);
+  const shadowsRef = useRef(true);
+  const fogDensityRef = useRef(1);
+  const bloomStrengthRef = useRef(1);
   const zoneDebugRef = useRef(false);
   const tourPausedRef = useRef(false);
   const reducedMotionRef = useRef(false);
@@ -486,6 +502,10 @@ export default function Home() {
   const [quality, setQuality] = useState<QualityTier>('medium');
   const [fogEnabled, setFogEnabled] = useState(true);
   const [postEnabled, setPostEnabled] = useState(true);
+  const [aoEnabled, setAoEnabled] = useState(false);
+  const [shadowsEnabled, setShadowsEnabled] = useState(true);
+  const [fogDensity, setFogDensity] = useState(1);
+  const [bloomStrength, setBloomStrength] = useState(1);
   const [zoneDebugEnabled, setZoneDebugEnabled] = useState(false);
   const [manifest, setManifest] = useState<WorldManifest>(() => createWorldManifest(DEFAULT_SEED, 'medium'));
   const [tourLocation, setTourLocation] = useState<WorldManifest['cameraLandmarks'][number]>(() => createWorldManifest(DEFAULT_SEED, 'medium').cameraLandmarks[0]);
@@ -505,6 +525,10 @@ export default function Home() {
   useEffect(() => { qualityRef.current = quality; }, [quality]);
   useEffect(() => { fogRef.current = fogEnabled; }, [fogEnabled]);
   useEffect(() => { postRef.current = postEnabled; }, [postEnabled]);
+  useEffect(() => { aoRef.current = aoEnabled; }, [aoEnabled]);
+  useEffect(() => { shadowsRef.current = shadowsEnabled; }, [shadowsEnabled]);
+  useEffect(() => { fogDensityRef.current = fogDensity; }, [fogDensity]);
+  useEffect(() => { bloomStrengthRef.current = bloomStrength; }, [bloomStrength]);
   useEffect(() => { zoneDebugRef.current = zoneDebugEnabled; }, [zoneDebugEnabled]);
   useEffect(() => { tourPausedRef.current = tourPaused; }, [tourPaused]);
   useEffect(() => { reducedMotionRef.current = reducedMotion; }, [reducedMotion]);
@@ -553,9 +577,15 @@ export default function Home() {
 
     const composer = new EffectComposer(renderer);
     const renderPass = new RenderPass(scene, camera);
+    const ssaoPass = new SSAOPass(scene, camera, mount.clientWidth, mount.clientHeight);
+    ssaoPass.kernelRadius = 9;
+    ssaoPass.minDistance = 0.0025;
+    ssaoPass.maxDistance = 0.12;
+    ssaoPass.enabled = false;
     const bloomPass = new UnrealBloomPass(new THREE.Vector2(mount.clientWidth, mount.clientHeight), 0.48, 0.42, 0.86);
     const outputPass = new OutputPass();
     composer.addPass(renderPass);
+    composer.addPass(ssaoPass);
     composer.addPass(bloomPass);
     composer.addPass(outputPass);
 
@@ -707,7 +737,7 @@ export default function Home() {
       daylightBlend = THREE.MathUtils.lerp(daylightBlend, daylightTarget, 1 - Math.exp(-delta * 2.4));
       backgroundColor.lerpColors(nightSky, daySky, daylightBlend);
       atmosphericFog.color.lerpColors(nightFog, dayFog, daylightBlend);
-      atmosphericFog.density = THREE.MathUtils.lerp(0.012, 0.0065, daylightBlend);
+      atmosphericFog.density = THREE.MathUtils.lerp(0.012, 0.0065, daylightBlend) * fogDensityRef.current;
       hemisphere.color.lerpColors(nightHemi, dayHemi, daylightBlend);
       hemisphere.groundColor.lerpColors(nightGround, dayGround, daylightBlend);
       hemisphere.intensity = THREE.MathUtils.lerp(1.3, 2.45, daylightBlend);
@@ -719,7 +749,10 @@ export default function Home() {
       world.celestialOrb.position.lerpVectors(nightOrbPosition, dayOrbPosition, daylightBlend);
       world.waterMaterial.uniforms.uMoon.value.lerpColors(nightWater, dayWater, daylightBlend);
       renderer.toneMappingExposure = THREE.MathUtils.lerp(postRef.current ? 1.05 : 0.82, postRef.current ? 1.16 : 1, daylightBlend);
-      bloomPass.strength = qualityRef.current === 'low' ? 0.28 : qualityRef.current === 'medium' ? 0.48 : 0.62;
+      bloomPass.strength = (qualityRef.current === 'low' ? 0.28 : qualityRef.current === 'medium' ? 0.48 : 0.62) * bloomStrengthRef.current;
+      ssaoPass.enabled = postRef.current && aoRef.current && qualityRef.current !== 'low';
+      renderer.shadowMap.enabled = shadowsRef.current;
+      moonLight.castShadow = shadowsRef.current;
       world.waterMaterial.uniforms.uTime.value = animationTime;
       world.waterMaterial.uniforms.uWaveStrength.value = waterMotionRef.current;
       world.magicMaterial.uniforms.uTime.value = animationTime;
@@ -1019,13 +1052,16 @@ export default function Home() {
         <section className="effect-toggles">
           <label><span>Atmospheric fog</span><input type="checkbox" checked={fogEnabled} onChange={(event) => setFogEnabled(event.target.checked)} /></label>
           <label><span>Cinematic grade</span><input type="checkbox" checked={postEnabled} onChange={(event) => setPostEnabled(event.target.checked)} /></label>
+          <label><span>SSAO {quality === 'low' ? '· Medium+' : ''}</span><input type="checkbox" checked={aoEnabled && quality !== 'low'} disabled={quality === 'low'} onChange={(event) => setAoEnabled(event.target.checked)} /></label>
+          <label><span>Dynamic shadows</span><input type="checkbox" checked={shadowsEnabled} onChange={(event) => setShadowsEnabled(event.target.checked)} /></label>
           <label><span>Zone boundaries</span><input type="checkbox" checked={zoneDebugEnabled} onChange={(event) => setZoneDebugEnabled(event.target.checked)} /></label>
           <label><span>Reduced camera motion</span><input type="checkbox" checked={reducedMotion} onChange={(event) => setReducedMotion(event.target.checked)} /></label>
           <label><span>Ambient animation</span><input type="checkbox" checked={!ambientPaused} onChange={(event) => setAmbientPaused(!event.target.checked)} /></label>
         </section>
-        <section className="water-control">
-          <label htmlFor="water-motion"><span>Water motion</span><output>{waterMotion.toFixed(1)}×</output></label>
-          <input id="water-motion" type="range" min="0" max="1.6" step="0.1" value={waterMotion} onChange={(event) => setWaterMotion(Number(event.target.value))} />
+        <section className="diagnostic-sliders">
+          <div className="water-control"><label htmlFor="fog-density"><span>Fog density</span><output>{fogDensity.toFixed(1)}×</output></label><input id="fog-density" type="range" min="0.25" max="1.75" step="0.05" value={fogDensity} onChange={(event) => setFogDensity(Number(event.target.value))} /></div>
+          <div className="water-control"><label htmlFor="bloom-strength"><span>Bloom strength</span><output>{bloomStrength.toFixed(1)}×</output></label><input id="bloom-strength" type="range" min="0" max="1.8" step="0.1" value={bloomStrength} onChange={(event) => setBloomStrength(Number(event.target.value))} /></div>
+          <div className="water-control"><label htmlFor="water-motion"><span>Water motion</span><output>{waterMotion.toFixed(1)}×</output></label><input id="water-motion" type="range" min="0" max="1.6" step="0.1" value={waterMotion} onChange={(event) => setWaterMotion(Number(event.target.value))} /></div>
         </section>
         <p>Generator {manifest.generatorVersion} · {manifest.counts.trees} trees<br />WebGL 2 · Seed {manifest.seedHash}</p>
         <button className="soak-audit" onClick={runSoakAudit} disabled={soakAudit.running}>{soakAudit.running ? `Rebuild audit ${soakAudit.completed}/${soakAudit.total}` : soakAudit.finalGeometries === null ? 'Run 20× rebuild audit' : `${Math.abs(soakAudit.baselineGeometries - soakAudit.finalGeometries) <= 1 ? 'Audit clean' : 'Audit drift'} · ${soakAudit.baselineGeometries}→${soakAudit.finalGeometries} geometries`}</button>

@@ -74,6 +74,7 @@ test('lake ecology scales by quality while preserving one shared boundary', () =
   const high = createWorldManifest('MAGIC-001', 'high');
   assert.ok(high.counts.reeds > low.counts.reeds);
   assert.ok(high.counts.shoreRocks > low.counts.shoreRocks);
+  assert.ok(high.counts.trees >= 1000);
   assert.deepEqual(low.zones.find((zone) => zone.type === 'lake'), high.zones.find((zone) => zone.type === 'lake'));
   assert.equal(low.zones.find((zone) => zone.type === 'lake')?.radius, 26);
 });
