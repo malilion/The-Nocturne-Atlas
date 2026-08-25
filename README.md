@@ -8,9 +8,11 @@ An original, seed-driven 3D wizarding world built with Three.js and TypeScript.
 
 ## Scene Gallery / 場景圖庫
 
-The gallery was captured from the deterministic `MAGIC-001` world with generator `1.9.0`, Medium quality, and night mode. All eight images are actual scene-switch destinations with the tour paused after arrival, including the seeded Great Hall interior.
+The paired night and daylight galleries were captured from the deterministic `MAGIC-001` world with generator `1.9.0` at Medium quality. All sixteen images are actual scene-switch destinations with the tour paused after arrival, including the seeded Great Hall interior.
 
-圖庫擷取自固定種子 `MAGIC-001`、生成器 `1.9.0`、中等畫質與夜間模式。八張圖片都是實際可切換的場景目的地，抵達後導覽會保持暫停，並包含種子化城堡大廳室內場景。
+夜間與白天兩組圖庫均擷取自固定種子 `MAGIC-001`、生成器 `1.9.0` 與中等畫質。十六張圖片都是實際可切換的場景目的地，抵達後導覽會保持暫停，並包含種子化城堡大廳室內場景。
+
+### Night / 夜晚
 
 | 1 · Castle of Veyra / 維拉城堡 | 2 · Lumen Row / 流明街村莊 |
 | --- | --- |
@@ -27,6 +29,24 @@ The gallery was captured from the deterministic `MAGIC-001` world with generator
 | 7 · Aerial Survey / 空中勘察 | 8 · The Great Hall / 城堡大廳 |
 | --- | --- |
 | ![Aerial survey showing the deterministic world zoning overview](docs/screenshots/aerial.png) | ![The Great Hall interior with floating candles, long tables, banners, and a dais](docs/screenshots/great-hall.png) |
+
+### Daylight / 白天
+
+| 1 · Castle of Veyra / 維拉城堡 | 2 · Lumen Row / 流明街村莊 |
+| --- | --- |
+| ![Castle of Veyra in daylight with gothic towers, battlements, and surrounding forest](docs/screenshots/castle-day.png) | ![Lumen Row village and road in daylight beneath the castle](docs/screenshots/village-day.png) |
+
+| 3 · Mirror Mere / 鏡月湖 | 4 · The Thorn Veil / 荊棘帷幕森林 |
+| --- | --- |
+| ![Mirror Mere shoreline, reeds, rocks, and castle view in daylight](docs/screenshots/lake-day.png) | ![The Thorn Veil procedural forest and layered tree canopies in daylight](docs/screenshots/forest-day.png) |
+
+| 5 · Astral Spire / 星界尖塔 | 6 · Moving Stair / 移動階梯中庭 |
+| --- | --- |
+| ![Astral Spire observatory and floating candles in daylight](docs/screenshots/tower-day.png) | ![Moving Stair courtyard and castle connections in daylight](docs/screenshots/courtyard-stair-day.png) |
+
+| 7 · Aerial Survey / 空中勘察 | 8 · The Great Hall / 城堡大廳 |
+| --- | --- |
+| ![Aerial daylight survey of the complete deterministic world](docs/screenshots/aerial-day.png) | ![The Great Hall daylight interior with sunlit walls, tables, banners, and floating candles](docs/screenshots/great-hall-day.png) |
 
 ---
 
@@ -70,7 +90,7 @@ Create a production build with `npm run build`. Run the deterministic regression
 
 ### Validation evidence
 
-- All eight fixed destinations were browser-checked and recaptured from generator `1.9.0` at 1280×720.
+- All eight fixed destinations were browser-checked in both night and daylight modes and recaptured from generator `1.9.0` at 1280×720, producing sixteen gallery images.
 - Village, Forest, Tower, and Moving Stair cameras satisfy presentation-clearance contracts across twenty regression seeds.
 - Day/night transition, automatic orbit, mouse drag, and wheel zoom were exercised in the local WebGL experience. Touch input shares the tested orbit constraints and adds one-finger drag plus two-finger pinch.
 - All 33 deterministic, lifecycle, shader, environment, collision, camera, interior, and presentation tests pass. Coverage includes deterministic Great Hall furnishing, grounded movement, world/lake/castle/village collision, seeded detail profiles, night fill ownership, exposure, fog density, daylight transition, shadow toggles, landmark-relative orbit focus, drag-paused automatic rotation, and idempotent cleanup.
@@ -139,7 +159,7 @@ npm run dev
 
 ### 驗證結果
 
-- 八個固定場景目的地皆已使用生成器 `1.9.0` 以 1280×720 實際檢查並重新截圖。
+- 八個固定場景目的地皆已使用生成器 `1.9.0`，分別在夜間與白天模式以 1280×720 實際檢查並重新截圖，共產生十六張圖庫圖片。
 - 村莊、森林、高塔與移動階梯鏡頭，在二十組回歸種子中皆符合取景淨空規則。
 - 日夜切換、自動環繞、滑鼠拖曳與滾輪縮放已在本機 WebGL 場景操作驗證。觸控操作沿用相同環繞限制，並加入單指拖曳與雙指縮放。
 - 33 項固定性、生命週期、Shader、環境、碰撞、鏡頭、室內與場景呈現測試全數通過。涵蓋固定種子大廳陳設、貼地移動、世界／湖泊／城堡／村莊碰撞、種子化細節設定、夜間補光管理、曝光、霧密度、日夜轉換、陰影切換、地標中心環繞、拖曳暫停自轉與重複清理安全性。
