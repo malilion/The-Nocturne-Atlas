@@ -17,6 +17,13 @@ export interface WorldManifest {
   quality: QualityTier;
   towerHeights: number[];
   counts: WorldCounts;
+  cameraLandmarks: Array<{
+    id: 'castle' | 'village' | 'lake' | 'forest' | 'tower';
+    label: string;
+    subtitle: string;
+    position: [number, number, number];
+    target: [number, number, number];
+  }>;
   zones: Array<{ id: string; type: 'castle' | 'village' | 'forest' | 'lake'; center: [number, number]; radius: number }>;
 }
 
@@ -68,13 +75,30 @@ function digestManifest(value: unknown) {
 export function createWorldManifest(seedText: string, quality: QualityTier): WorldManifest {
   const seed = seedText.trim().toUpperCase() || 'MAGIC-001';
   const castle = seededStream(seed, 'castle/massing');
+  const camera = seededStream(seed, 'camera/tour');
+  const seedHash = hashSeed(seed);
+  const cameraLandmarks: WorldManifest['cameraLandmarks'] = [
+    { id: 'castle', label: 'Castle of Veyra', subtitle: 'Central highlands', position: [34 + camera() * 5, 27 + camera() * 3, -44 + camera() * 5], target: [-7, 11, -4] },
+    { id: 'village', label: 'Lumen Row', subtitle: 'Village approach', position: [-57 + camera() * 5, 13 + camera() * 2, 34 + camera() * 4], target: [-31, 4, 13] },
+    { id: 'lake', label: 'Mirror Mere', subtitle: 'Moonlit shoreline', position: [53 + camera() * 5, 10 + camera() * 2, 46 + camera() * 4], target: [28, -0.5, 18] },
+    { id: 'forest', label: 'The Thorn Veil', subtitle: 'Ancient forest edge', position: [34 + camera() * 6, 15 + camera() * 3, -55 + camera() * 5], target: [15, 4, -43] },
+    { id: 'tower', label: 'Astral Spire', subtitle: 'Upper observatory', position: [-24 + camera() * 4, 31 + camera() * 3, -15 + camera() * 4], target: [-7, 18, -4] },
+  ].map((landmark) => ({
+    ...landmark,
+    position: [
+      Number(landmark.position[0].toFixed(3)),
+      Number(Math.max(landmark.position[1], terrainHeight(landmark.position[0], landmark.position[2], seedHash) + 7).toFixed(3)),
+      Number(landmark.position[2].toFixed(3)),
+    ],
+  })) as WorldManifest['cameraLandmarks'];
   const base = {
     seed,
-    seedHash: hashSeed(seed),
+    seedHash,
     generatorVersion: '1.1.0' as const,
     quality,
     towerHeights: [18 + castle() * 4, 23 + castle() * 5, 16 + castle() * 4, 14 + castle() * 5].map((height) => Number(height.toFixed(3))),
     counts: { ...QUALITY_COUNTS[quality] },
+    cameraLandmarks,
     zones: [
       { id: 'castle-core', type: 'castle' as const, center: [-7, -4] as [number, number], radius: 25 },
       { id: 'lumen-row', type: 'village' as const, center: [-31, 13] as [number, number], radius: 24 },

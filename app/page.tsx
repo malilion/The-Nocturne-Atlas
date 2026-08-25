@@ -382,6 +382,8 @@ export default function Home() {
   const fogRef = useRef(true);
   const postRef = useRef(true);
   const zoneDebugRef = useRef(false);
+  const tourPausedRef = useRef(false);
+  const reducedMotionRef = useRef(false);
   const [seed, setSeed] = useState(DEFAULT_SEED);
   const [activeSeed, setActiveSeed] = useState(DEFAULT_SEED);
   const [copied, setCopied] = useState(false);
@@ -392,6 +394,9 @@ export default function Home() {
   const [postEnabled, setPostEnabled] = useState(true);
   const [zoneDebugEnabled, setZoneDebugEnabled] = useState(false);
   const [manifest, setManifest] = useState<WorldManifest>(() => createWorldManifest(DEFAULT_SEED, 'medium'));
+  const [tourLocation, setTourLocation] = useState<WorldManifest['cameraLandmarks'][number]>(() => createWorldManifest(DEFAULT_SEED, 'medium').cameraLandmarks[0]);
+  const [tourPaused, setTourPaused] = useState(false);
+  const [reducedMotion, setReducedMotion] = useState(false);
   const [generationStatus, setGenerationStatus] = useState<'ready' | 'building' | 'error'>('ready');
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [stats, setStats] = useState<PerformanceStats>({ fps: 60, calls: 0, triangles: 0 });
@@ -403,6 +408,8 @@ export default function Home() {
   useEffect(() => { fogRef.current = fogEnabled; }, [fogEnabled]);
   useEffect(() => { postRef.current = postEnabled; }, [postEnabled]);
   useEffect(() => { zoneDebugRef.current = zoneDebugEnabled; }, [zoneDebugEnabled]);
+  useEffect(() => { tourPausedRef.current = tourPaused; }, [tourPaused]);
+  useEffect(() => { reducedMotionRef.current = reducedMotion; }, [reducedMotion]);
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -444,6 +451,19 @@ export default function Home() {
 
     let world = createWorld(seedRef.current, qualityRef.current);
     scene.add(world.root);
+    const createTourCurves = (worldManifest: WorldManifest) => ({
+      positions: new THREE.CatmullRomCurve3(worldManifest.cameraLandmarks.map((landmark) => new THREE.Vector3(...landmark.position)), true, 'catmullrom', 0.26),
+      targets: new THREE.CatmullRomCurve3(worldManifest.cameraLandmarks.map((landmark) => new THREE.Vector3(...landmark.target)), true, 'catmullrom', 0.3),
+    });
+    let tourCurves = createTourCurves(world.manifest);
+    let tourTime = 0;
+    let lastTourIndex = -1;
+    let tourHandoffStarted = -10;
+    const tourHandoffPosition = new THREE.Vector3();
+    const tourHandoffTarget = new THREE.Vector3();
+    const desiredTourPosition = new THREE.Vector3();
+    const desiredTourTarget = new THREE.Vector3();
+    const blendedTourTarget = new THREE.Vector3();
     const startedAt = performance.now();
     let frame = 0;
     let rebuildRequested = false;
@@ -504,6 +524,9 @@ export default function Home() {
           const previousWorld = world;
           scene.add(nextWorld.root);
           world = nextWorld;
+          tourCurves = createTourCurves(world.manifest);
+          tourTime = 0;
+          lastTourIndex = -1;
           scene.remove(previousWorld.root);
           disposeObject(previousWorld.root);
           renderer.setPixelRatio(Math.min(window.devicePixelRatio, renderScale()));
@@ -538,15 +561,30 @@ export default function Home() {
         orbitRadius = THREE.MathUtils.clamp(offset.length(), 27, 115);
         orbitYaw = Math.atan2(offset.z, offset.x);
         orbitPitch = Math.asin(THREE.MathUtils.clamp(offset.y / orbitRadius, -1, 1));
+        if (currentMode === 'tour') {
+          tourHandoffPosition.copy(camera.position);
+          camera.getWorldDirection(forward);
+          tourHandoffTarget.copy(camera.position).addScaledVector(forward, 20);
+          tourHandoffStarted = elapsed;
+        }
         velocity.set(0, 0, 0);
         lastMode = currentMode;
       }
 
       if (currentMode === 'tour') {
-        const angle = elapsed * 0.035 - 0.45;
-        const sweep = 61 + Math.sin(elapsed * 0.12) * 9;
-        camera.position.set(Math.cos(angle) * sweep - 2, 27 + Math.sin(elapsed * 0.08) * 3, Math.sin(angle) * sweep + 4);
-        camera.lookAt(-4, 9, 0);
+        if (!tourPausedRef.current) tourTime += delta * (reducedMotionRef.current ? 0.38 : 1);
+        const tourProgress = (tourTime % 52) / 52;
+        tourCurves.positions.getPointAt(tourProgress, desiredTourPosition);
+        tourCurves.targets.getPointAt(tourProgress, desiredTourTarget);
+        const handoff = THREE.MathUtils.smoothstep(elapsed - tourHandoffStarted, 0, reducedMotionRef.current ? 2.4 : 1.25);
+        camera.position.lerpVectors(tourHandoffPosition, desiredTourPosition, handoff);
+        blendedTourTarget.lerpVectors(tourHandoffTarget, desiredTourTarget, handoff);
+        camera.lookAt(blendedTourTarget);
+        const tourIndex = Math.floor(tourProgress * world.manifest.cameraLandmarks.length) % world.manifest.cameraLandmarks.length;
+        if (tourIndex !== lastTourIndex) {
+          lastTourIndex = tourIndex;
+          setTourLocation(world.manifest.cameraLandmarks[tourIndex]);
+        }
       } else if (currentMode === 'orbit') {
         camera.position.set(
           orbitTarget.x + Math.cos(orbitYaw) * Math.cos(orbitPitch) * orbitRadius,
@@ -669,6 +707,13 @@ export default function Home() {
     if (nextMode !== 'fly' && document.pointerLockElement) document.exitPointerLock();
   }, []);
 
+  const toggleTourPause = useCallback(() => {
+    setTourPaused((paused) => {
+      tourPausedRef.current = !paused;
+      return !paused;
+    });
+  }, []);
+
   useEffect(() => {
     const shortcuts = (event: KeyboardEvent) => {
       if (event.target instanceof HTMLInputElement) return;
@@ -677,10 +722,14 @@ export default function Home() {
       if (key === 'f') selectMode('fly');
       if (key === 'o') selectMode('orbit');
       if (key === 'r') randomSeed();
+      if (key === ' ' && modeRef.current === 'tour') {
+        event.preventDefault();
+        toggleTourPause();
+      }
     };
     window.addEventListener('keydown', shortcuts);
     return () => window.removeEventListener('keydown', shortcuts);
-  }, [randomSeed, selectMode]);
+  }, [randomSeed, selectMode, toggleTourPause]);
 
   return (
     <main className="experience-shell">
@@ -722,18 +771,19 @@ export default function Home() {
           <label><span>Atmospheric fog</span><input type="checkbox" checked={fogEnabled} onChange={(event) => setFogEnabled(event.target.checked)} /></label>
           <label><span>Cinematic grade</span><input type="checkbox" checked={postEnabled} onChange={(event) => setPostEnabled(event.target.checked)} /></label>
           <label><span>Zone boundaries</span><input type="checkbox" checked={zoneDebugEnabled} onChange={(event) => setZoneDebugEnabled(event.target.checked)} /></label>
+          <label><span>Reduced camera motion</span><input type="checkbox" checked={reducedMotion} onChange={(event) => setReducedMotion(event.target.checked)} /></label>
         </section>
         <p>Generator {manifest.generatorVersion} · {manifest.counts.trees} trees<br />WebGL 2 · Seed {manifest.seedHash}</p>
         <button className="manifest-copy" onClick={copyManifest}>{manifestCopied ? 'Manifest copied' : 'Copy world manifest'}</button>
       </aside>
       <footer className="scene-footer">
-        <div><span>01</span><p><strong>Castle of Veyra</strong><small>Central highlands</small></p></div>
+        <div className="landmark-caption"><span>{mode === 'tour' ? String(manifest.cameraLandmarks.findIndex((landmark) => landmark.id === tourLocation.id) + 1).padStart(2, '0') : mode === 'fly' ? 'F' : 'O'}</span><p><strong>{mode === 'tour' ? tourLocation.label : mode === 'fly' ? 'Free flight' : 'Atlas survey'}</strong><small>{mode === 'tour' ? tourLocation.subtitle : mode === 'fly' ? 'Manual navigation' : 'Orbital inspection'}</small></p>{mode === 'tour' && <button className="tour-pause" onClick={toggleTourPause}>{tourPaused ? 'Resume' : 'Pause'}</button>}</div>
         <nav className="camera-modes" aria-label="Camera mode">
           <button className={mode === 'tour' ? 'active' : ''} onClick={() => selectMode('tour')}><kbd>T</kbd> Tour</button>
           <button className={mode === 'fly' ? 'active' : ''} onClick={() => selectMode('fly')}><kbd>F</kbd> Free fly</button>
           <button className={mode === 'orbit' ? 'active' : ''} onClick={() => selectMode('orbit')}><kbd>O</kbd> Orbit</button>
         </nav>
-        <p className="coordinates">{mode === 'fly' ? 'WASD · Q/E · SHIFT' : mode === 'orbit' ? 'DRAG · SCROLL' : 'CINEMATIC PATH'}<br />R · NEW WORLD</p>
+        <p className="coordinates">{mode === 'fly' ? 'WASD · Q/E · SHIFT' : mode === 'orbit' ? 'DRAG · SCROLL' : `SPACE · ${tourPaused ? 'RESUME' : 'PAUSE'} TOUR`}<br />R · NEW WORLD</p>
       </footer>
     </main>
   );
