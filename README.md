@@ -66,12 +66,13 @@ The paired night and daylight galleries were captured from the deterministic `MA
 - `9` / `0` — open the Courtyard Stair or Aerial fixed view
 - `H` — enter the seeded Great Hall interior
 - `I` — enter Veilcross Station's seeded waiting hall
+- `L` — enter the seeded Veyra Archive library
 - `M` — enable or mute the procedural soundscape
 - `N` — switch between day and night
 
 Walk mode keeps the camera at eye height over procedural terrain and applies collision against world bounds, the lake, castle towers, hall and gatehouse, and every rotated village footprint. Blocked diagonal movement attempts an axis slide so the player can move naturally along walls. Orbit mode supports mouse drag and wheel zoom on desktop, plus one-finger drag and two-finger pinch zoom on touch screens. It focuses on the most recently presented landmark instead of jumping to a fixed world center. Automatic rotation pauses while dragging and resumes on release; manual zoom remains available throughout.
 
-`Enter realm` starts the experience, collapses the landing panel, and parks the camera on the castle. Use `Resume` or `Space` to begin the tour. The scene switcher provides direct buttons for eight world landmarks plus the courtyard staircase, aerial survey, Great Hall, and Veilcross waiting-hall fixed views. Every transition stops at its destination until the tour is explicitly resumed. Inside Veilcross, decode the board, ask Clerk Elyra, claim a passage stamp, travel to the seed-selected landmark, and complete the local delivery. The tracker remains visible after leaving the station.
+`Enter realm` starts the experience, collapses the landing panel, and parks the camera on the castle. Use `Resume` or `Space` to begin the tour. The scene switcher provides direct buttons for eight world landmarks plus the courtyard staircase, aerial survey, Great Hall, Veilcross waiting hall, and Veyra Archive library fixed views. Every transition stops at its destination until the tour is explicitly resumed. Inside Veilcross, decode the board, ask Clerk Elyra, claim a passage stamp, travel to the seed-selected landmark, and complete the local delivery. The tracker remains visible after leaving the station.
 
 The same seed always recreates the same world. The HUD reports live frame rate and frame time, draw calls, triangles, GPU resource ownership, generation time, optional JavaScript heap data, and resources released by the latest rebuild. Seed, Randomize, and quality controls lock while a build or rebuild audit is active, preventing overlapping UI mutations.
 
@@ -95,7 +96,7 @@ Create a production build with `npm run build`. Run the deterministic regression
 - All eight fixed destinations were browser-checked in both night and daylight modes and recaptured from generator `1.9.0` at 1280×720, producing sixteen gallery images.
 - Village, Forest, Tower, and Moving Stair cameras satisfy presentation-clearance contracts across twenty regression seeds.
 - Day/night transition, automatic orbit, mouse drag, and wheel zoom were exercised in the local WebGL experience. Touch input shares the tested orbit constraints and adds one-finger drag plus two-finger pinch.
-- All 60 deterministic, lifecycle, shader, audio, environment, streaming, NPC-motion, collision, camera, interior, region-topology, quest-state, embellishment, incremental-generation, rebuild-coordination, and presentation tests pass. Coverage includes cooperative chunk scheduling, mid-build cancellation and cleanup, cross-region quest transitions and landmark mapping, deterministic NPC patrol profiles, reduced-motion pose restoration, camera-distance activation, streaming hysteresis and aerial overrides, seed/day-aware audio profiles, progressive quest cues, seeded mountains/ruins/station generation, seeded visual embellishments and quality scaling, metal/glass shader behavior, latest-request-wins coalescing, deterministic Great Hall and Veilcross furnishing, NPC/quest attachment contracts, grounded movement, world/lake/castle/village/landmark collision, seeded detail profiles, night fill ownership, exposure, fog density, daylight transition, shadow toggles, landmark-relative orbit focus, drag-paused automatic rotation, and idempotent cleanup.
+- All 62 deterministic, lifecycle, shader, audio, environment, streaming, NPC-motion, collision, camera, interior, region-topology, quest-state, embellishment, incremental-generation, rebuild-coordination, and presentation tests pass. Coverage includes cooperative chunk scheduling, mid-build cancellation and cleanup, cross-region quest transitions and landmark mapping, deterministic NPC patrol profiles, reduced-motion pose restoration, camera-distance activation, streaming hysteresis and aerial overrides, seed/day-aware audio profiles, progressive quest cues, seeded mountains/ruins/station generation, seeded visual embellishments and quality scaling, metal/glass shader behavior, latest-request-wins coalescing, deterministic Great Hall, Veilcross, and Veyra Archive furnishing, NPC/quest attachment contracts, grounded movement, world/lake/castle/village/landmark collision, seeded detail profiles, night fill ownership, exposure, fog density, daylight transition, shadow toggles, landmark-relative orbit focus, drag-paused automatic rotation, and idempotent cleanup.
 - Production build and lint complete without errors. The build currently reports a non-blocking warning for the Three.js client chunk exceeding 500 kB after minification.
 - The generator `1.9.0` Medium-quality castle view reports 60 FPS, 189 draw calls, 66k triangles, 66 geometries, and 16 textures in the local Chromium/WebGL2 1920×1080 validation run. The Great Hall view reports 60 FPS, 129 draw calls, and 59k triangles. Cross-device FPS remains hardware-dependent.
 - The settled `20× rebuild audit` completed cleanly at 1920×1080: geometries remained `66→66`, while the available browser heap sample settled from `38.5→39.2 MB` after a three-second post-rebuild observation window.
@@ -126,6 +127,8 @@ Generator `2.6.0` gives the station characters deterministic ambient behavior. C
 
 Generator `2.7.0` extends the Veilcross micro-quest into a cross-region courier route. After receiving the passage stamp, the persistent tracker sends the player to Umbravale, Orison Ruins, or Lumen Row according to the active seed, switches to that landmark through the established camera system, and presents a location-specific final delivery. The finite six-state machine prevents skipped or repeated transitions, and each journey stage has a distinct synthesized cue.
 
+Generator `2.8.0` converts the Veyra Archive library wing into the project's third enterable interior. Its hollow shell contains seeded bookcases and books, reading desks, a leaded-glass skylight, floating volumes, a central archive table, a luminous memory orb, bounded interior lighting, and a stable researcher anchor for future interaction. The exterior roof, windows, and balcony remain intact, while the direct `L` shortcut and fixed scene view provide immediate access.
+
 Regeneration uses an atomic, latest-request-wins pipeline. World construction is split into deterministic chunks that yield after a browser paint opportunity, so the active world keeps rendering and superseded tickets can be canceled through `AbortController` while generation is still in progress. Partially built roots own their resources from the first cancellable boundary and dispose them automatically on cancellation. A new world is fully constructed and validated before it replaces the active root. Shared resources are deduplicated through an idempotent registry before disposal. Failed generation leaves the existing world visible, while WebGL context restoration triggers a validated rebuild. The `20× rebuild audit` tracks GPU geometry and browser heap samples when heap telemetry is available. The latest coordinator validation completed cleanly at `65→65` geometries with the available heap sample settling from `36.9→34.7 MB`.
 
 The castle manifest is a connected topology of towers, hall, courtyard, gate, corridors, bridges, and a moving-stair route. Village placement validates road setback, zone membership, castle/lake exclusion, terrain slope, unique IDs, and footprint separation. The cinematic camera follows seed-aware Catmull–Rom curves through five terrain-safe landmarks, with every segment checked across twenty regression seeds.
@@ -134,7 +137,7 @@ No third-party models, textures, characters, names, or franchise assets are incl
 
 ### Scope
 
-This repository contains the complete Phase 1 vertical slice plus grounded collision navigation, two enterable Phase 2 interiors, two animated station characters, the first complete deterministic cross-region quest, an original procedural soundscape, and camera-distance region streaming. Additional interiors and a broader world NPC population remain planned follow-up work.
+This repository contains the complete Phase 1 vertical slice plus grounded collision navigation, three enterable Phase 2 interiors, two animated station characters, the first complete deterministic cross-region quest, an original procedural soundscape, and camera-distance region streaming. A broader world NPC population remains planned follow-up work.
 
 ---
 
@@ -154,12 +157,13 @@ This repository contains the complete Phase 1 vertical slice plus grounded colli
 - `9` / `0` — 切換至中庭階梯或空中勘察固定視角
 - `H` — 進入種子化城堡大廳室內場景
 - `I` — 進入霧岔車站的種子化候車大廳
+- `L` — 進入種子化 Veyra Archive 圖書館
 - `M` — 開啟或靜音程序化聲景
 - `N` — 切換白天與夜晚
 
 地面行走模式會讓鏡頭保持在程序地形上的視線高度，並對世界邊界、湖泊、城堡塔樓、大廳、城門，以及每棟旋轉過的村屋套用碰撞。斜向移動受阻時會嘗試沿單一軸向滑動，讓貼牆行走更自然。環繞模式在桌面支援滑鼠拖曳與滾輪縮放，在觸控裝置支援單指拖曳與雙指縮放。進入環繞模式時會以最近瀏覽的地標為中心，不會跳回固定的世界中心。拖曳期間自動旋轉會暫停，放開後自然恢復，過程中仍可隨時縮放。
 
-按下 `Enter realm` 會進入世界、收合起始面板，並將鏡頭停在城堡。使用 `Resume` 或 `Space` 才會開始導覽。場景切換列提供八個世界地標，以及中庭階梯、空中勘察、城堡大廳與霧岔候車廳固定視角；每次轉場抵達後都會停住，直到使用者主動恢復導覽。在霧岔候車廳依序解讀班次板、詢問 Elyra、領取通行印記、前往種子指定地標並完成當地交付；離開車站後任務追蹤面板仍會持續顯示。
+按下 `Enter realm` 會進入世界、收合起始面板，並將鏡頭停在城堡。使用 `Resume` 或 `Space` 才會開始導覽。場景切換列提供八個世界地標，以及中庭階梯、空中勘察、城堡大廳、霧岔候車廳與 Veyra Archive 圖書館固定視角；每次轉場抵達後都會停住，直到使用者主動恢復導覽。在霧岔候車廳依序解讀班次板、詢問 Elyra、領取通行印記、前往種子指定地標並完成當地交付；離開車站後任務追蹤面板仍會持續顯示。
 
 輸入相同種子一定會重建出相同世界。HUD 會顯示即時幀率、幀時間、Draw Calls、三角形數量、GPU 資源、生成時間、瀏覽器支援時的 JavaScript Heap，以及上一次重建所釋放的資源。世界建立或重建稽核進行時，Seed、Randomize 與畫質控制會暫時鎖定，避免 UI 操作重疊修改狀態。
 
@@ -183,7 +187,7 @@ npm run dev
 - 八個固定場景目的地皆已使用生成器 `1.9.0`，分別在夜間與白天模式以 1280×720 實際檢查並重新截圖，共產生十六張圖庫圖片。
 - 村莊、森林、高塔與移動階梯鏡頭，在二十組回歸種子中皆符合取景淨空規則。
 - 日夜切換、自動環繞、滑鼠拖曳與滾輪縮放已在本機 WebGL 場景操作驗證。觸控操作沿用相同環繞限制，並加入單指拖曳與雙指縮放。
-- 60 項固定性、生命週期、Shader、音效、環境、串流、NPC 動作、碰撞、鏡頭、室內、區域拓樸、任務狀態、場景深化、分段生成、重建協調與場景呈現測試全數通過。涵蓋跨區域任務轉換與地標映射、固定種子 NPC 巡查設定、減少動態時的姿勢還原、鏡頭距離啟用、串流遲滯與空中視角覆寫、種子／日夜感知音訊設定、漸進任務提示音、生成途中取消與清理、山脈／遺跡／車站生成、固定種子城堡與霧岔室內陳設、NPC／任務掛點契約、貼地移動、世界／湖泊／城堡／村莊碰撞、種子化細節設定、夜間補光管理、曝光、霧密度、日夜轉換、陰影切換、地標中心環繞、拖曳暫停自轉與重複清理安全性。
+- 62 項固定性、生命週期、Shader、音效、環境、串流、NPC 動作、碰撞、鏡頭、室內、區域拓樸、任務狀態、場景深化、分段生成、重建協調與場景呈現測試全數通過。涵蓋跨區域任務轉換與地標映射、固定種子 NPC 巡查設定、減少動態時的姿勢還原、鏡頭距離啟用、串流遲滯與空中視角覆寫、種子／日夜感知音訊設定、漸進任務提示音、生成途中取消與清理、山脈／遺跡／車站生成、固定種子城堡、霧岔與 Veyra Archive 室內陳設、NPC／任務掛點契約、貼地移動、世界／湖泊／城堡／村莊碰撞、種子化細節設定、夜間補光管理、曝光、霧密度、日夜轉換、陰影切換、地標中心環繞、拖曳暫停自轉與重複清理安全性。
 - 正式建置與 Lint 均無錯誤。目前僅有 Three.js 用戶端區塊壓縮後超過 500 kB 的非阻擋警告。
 - 生成器 `1.9.0` 的中等畫質城堡視角，在本機 Chromium／WebGL2、1920×1080 驗證中為 60 FPS、189 Draw Calls、66k 三角形、66 個 Geometry 與 16 個 Texture；城堡大廳視角則為 60 FPS、129 Draw Calls 與 59k 三角形。不同裝置的 FPS 仍取決於實際硬體。
 - 1920×1080 的 `20× rebuild audit` 已通過穩定驗證：Geometry 維持 `66→66`，瀏覽器可提供的 Heap 樣本在重建後三秒觀察窗中由 `38.5→39.2 MB`。
@@ -214,6 +218,8 @@ npm run dev
 
 生成器 `2.7.0` 將霧岔微型任務擴展成跨區域遞送路線。取得通行印記後，持續顯示的追蹤面板會依目前種子將玩家送往 Umbravale、Orison Ruins 或 Lumen Row，透過既有鏡頭系統切換地標，並呈現該地專屬的最終交付內容。有限的六狀態機會防止跳步與重複轉換，每個旅程階段也都有不同的合成提示音。
 
+生成器 `2.8.0` 將 Veyra Archive 圖書館側翼改造成專案第三個可進入室內空間。中空外殼內加入種子化書櫃與書籍、閱讀桌、鉛框玻璃天窗、漂浮書籍、中央檔案桌、發光記憶球、範圍受控的室內燈光，以及供未來互動使用的固定研究員掛點；原有屋頂、窗戶與陽台外觀則完整保留。使用 `L` 快捷鍵或固定場景視角即可直接進入。
+
 世界重建採用原子化、最新請求優先的流程。世界建立已拆成決定性的分段工作，每段都會在瀏覽器完成一次繪製後讓出主執行緒，因此舊世界能持續顯示，已被取代的 Ticket 也能在生成途中透過 `AbortController` 真正取消。半成品從第一個可取消邊界起便由暫存 Root 持有資源，取消時會自動清理。新世界完成建立與驗證後才取代目前場景；共用資源由可重複安全清理的 Registry 去重並釋放。生成失敗時舊世界仍可使用；WebGL Context 恢復後則會觸發已驗證的重建流程。`20× rebuild audit` 會記錄 GPU Geometry，以及瀏覽器提供 Heap Telemetry 時的記憶體樣本。最新一次協調器驗證維持 `65→65` 個 Geometry，Heap 樣本由 `36.9→34.7 MB`。
 
 城堡 Manifest 是由塔樓、大廳、中庭、城門、走廊、橋梁與移動階梯路線組成的連通拓撲。村莊配置會驗證道路退縮、區域範圍、城堡與湖泊排除、地形坡度、唯一 ID 與建築間距。電影式鏡頭使用與種子相關的 Catmull–Rom 曲線穿過五個地形安全地標，並以二十組回歸種子檢查每個曲線區段。
@@ -222,4 +228,4 @@ npm run dev
 
 ### 專案範圍
 
-目前版本包含完成度完整的 Phase 1 垂直切片，以及 Phase 2 的地面碰撞導航、兩個可進入室內場景、兩名具有動作的車站角色、第一條完整固定種子跨區域任務、原創程序化聲景與鏡頭距離區域串流。更多室內空間與更廣泛的世界 NPC 群體仍屬後續階段規劃。
+目前版本包含完成度完整的 Phase 1 垂直切片，以及 Phase 2 的地面碰撞導航、三個可進入室內場景、兩名具有動作的車站角色、第一條完整固定種子跨區域任務、原創程序化聲景與鏡頭距離區域串流。更廣泛的世界 NPC 群體仍屬後續階段規劃。

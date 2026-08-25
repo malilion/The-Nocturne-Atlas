@@ -32,6 +32,8 @@ test('embellishments create the planned castle, village, forest, and ambient lan
   const ambient = createAmbientEmbellishments(manifest, 'medium', surfaces);
 
   assert.ok(castle.getObjectByName('west-library-wing'));
+  assert.ok(castle.getObjectByName('veyra-library-hall'));
+  assert.ok(castle.getObjectByName('library-memory-orb'));
   assert.ok(castle.getObjectByName('courtyard-arcade'));
   assert.ok(castle.getObjectByName('bridge-buttress-supports'));
   assert.ok(village.getObjectByName('lumen-row-market-square'));
