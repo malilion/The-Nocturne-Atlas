@@ -60,9 +60,12 @@ test('CameraManager owns an idempotent lifecycle', () => {
 test('CameraManager applies orbit drag, zoom, and automatic rotation', () => {
   const camera = new THREE.PerspectiveCamera();
   const manager = new CameraManager(camera, null, manifest);
+  manager.update(baseUpdate);
   const orbitUpdate: CameraUpdate = { ...baseUpdate, mode: 'orbit', elapsed: 1 };
   manager.update(orbitUpdate);
   const initialPosition = camera.position.clone();
+  const castleTarget = new THREE.Vector3(...manifest.cameraLandmarks[0].target);
+  const expectedRadius = THREE.MathUtils.clamp(initialPosition.distanceTo(castleTarget) + 36, 27, 115);
 
   manager.rotateOrbit(120, -40);
   manager.zoomOrbit(36);
@@ -70,8 +73,32 @@ test('CameraManager applies orbit drag, zoom, and automatic rotation', () => {
   const manipulatedPosition = camera.position.clone();
 
   manager.update({ ...orbitUpdate, elapsed: 3, delta: 1, autoRotate: true });
+  const rotatedPosition = camera.position.clone();
+  manager.setOrbitInteraction(true);
+  manager.update({ ...orbitUpdate, elapsed: 4, delta: 1, autoRotate: true });
+  const positionWhileDragging = camera.position.clone();
+  manager.setOrbitInteraction(false);
+  manager.update({ ...orbitUpdate, elapsed: 5, delta: 1, autoRotate: true });
 
   assert.ok(manipulatedPosition.distanceTo(initialPosition) > 10);
-  assert.ok(camera.position.distanceTo(manipulatedPosition) > 1);
-  assert.ok(Math.abs(camera.position.distanceTo(new THREE.Vector3(-7, 10, -4)) - 63) < 0.0001);
+  assert.ok(rotatedPosition.distanceTo(manipulatedPosition) > 1);
+  assert.ok(positionWhileDragging.distanceTo(rotatedPosition) < 0.0001);
+  assert.ok(camera.position.distanceTo(positionWhileDragging) > 1);
+  assert.ok(Math.abs(camera.position.distanceTo(castleTarget) - expectedRadius) < 0.0001);
+});
+
+test('CameraManager orbits the most recently presented landmark', () => {
+  const camera = new THREE.PerspectiveCamera();
+  const manager = new CameraManager(camera, null, manifest);
+  manager.update(baseUpdate);
+  manager.update({ ...baseUpdate, elapsed: 1, requestedScene: 'village' });
+  manager.update({ ...baseUpdate, elapsed: 3 });
+  const villageTarget = new THREE.Vector3(...manifest.cameraLandmarks[1].target);
+
+  manager.update({ ...baseUpdate, elapsed: 4, mode: 'orbit' });
+
+  const direction = new THREE.Vector3();
+  camera.getWorldDirection(direction);
+  const expectedDirection = villageTarget.clone().sub(camera.position).normalize();
+  assert.ok(direction.angleTo(expectedDirection) < 0.0001);
 });

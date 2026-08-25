@@ -35,7 +35,7 @@ Captured from the deterministic `MAGIC-001` world with generator `1.7.0` at Medi
 - `6` / `7` — fixed Courtyard Stair or Aerial validation view
 - `N` — switch between day and night
 
-Orbit mode supports mouse drag and wheel zoom on desktop, plus one-finger drag and two-finger pinch zoom on touch screens. Starting automatic rotation switches directly to Orbit; manual drag and zoom remain available while it is running.
+Orbit mode supports mouse drag and wheel zoom on desktop, plus one-finger drag and two-finger pinch zoom on touch screens. It adopts the most recently presented landmark as its focus instead of jumping to a fixed world center. Starting automatic rotation switches directly to Orbit; dragging temporarily pauses automatic motion and releasing resumes it, while manual zoom remains available throughout.
 
 The seed panel accepts any text. Re-entering the same seed recreates the same world. The HUD shows live frame and frame time, draw calls, triangles, points/lines, GPU geometry/texture ownership, generation time, optional browser JS heap data, and the resources released by the last rebuild.
 
@@ -60,7 +60,7 @@ Run the deterministic regression suite with `npm test`. It checks manifest repea
 
 - Seven fixed scene destinations were browser-checked and captured from the current generator; Village, Forest, Tower, and Moving Stair use presentation-clearance camera contracts across twenty regression seeds.
 - Day/night transition, automatic orbit, mouse drag, and wheel zoom were exercised in the local WebGL experience. Touch handling shares the tested orbit rotation and zoom constraints and adds one-finger drag plus two-finger pinch input.
-- The automated suite contains 24 deterministic, lifecycle, shader, environment, camera, and presentation tests. Environment coverage includes night fill ownership, exposure, fog density, daylight transition, shadow toggles, and idempotent cleanup. Production build and lint complete without errors.
+- The automated suite contains 25 deterministic, lifecycle, shader, environment, camera, and presentation tests. Environment coverage includes night fill ownership, exposure, fog density, daylight transition, shadow toggles, and idempotent cleanup; camera coverage includes landmark-relative orbit focus and drag-paused automatic rotation. Production build and lint complete without errors.
 - Medium quality stays within the Phase 1 draw-call budget in sampled views; the current local sample reports 146 draw calls, 55k triangles, and 70 geometries. Final 1080p FPS qualification remains hardware-dependent and should be measured on the intended GPU without browser-automation throttling.
 
 ## Implementation notes
