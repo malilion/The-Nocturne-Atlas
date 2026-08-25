@@ -55,6 +55,8 @@ export class CameraManager {
   private readonly forward = new THREE.Vector3();
   private readonly right = new THREE.Vector3();
   private readonly orbitTarget = new THREE.Vector3(-7, 10, -4);
+  private readonly focusTarget = new THREE.Vector3();
+  private focusTargetValid = false;
   private readonly keys = new Set<string>();
   private disposed = false;
   private controlsAttached = false;
@@ -98,6 +100,14 @@ export class CameraManager {
       const euler = new THREE.Euler().setFromQuaternion(this.camera.quaternion, 'YXZ');
       this.flyYaw = euler.y;
       this.flyPitch = euler.x;
+      if (this.mode === 'orbit') {
+        if (this.focusTargetValid && this.lastMode !== 'fly') {
+          this.orbitTarget.copy(this.focusTarget);
+        } else {
+          this.camera.getWorldDirection(this.forward);
+          this.orbitTarget.copy(this.camera.position).addScaledVector(this.forward, 40);
+        }
+      }
       const offset = this.camera.position.clone().sub(this.orbitTarget);
       this.orbitRadius = THREE.MathUtils.clamp(offset.length(), 27, 115);
       this.orbitYaw = Math.atan2(offset.z, offset.x);
@@ -113,7 +123,7 @@ export class CameraManager {
         const handoff = THREE.MathUtils.smoothstep(settings.elapsed - this.tourHandoffStarted, 0, handoffDuration);
         this.camera.position.lerpVectors(this.tourHandoffPosition, this.sceneDestinationPosition, handoff);
         this.blendedTarget.lerpVectors(this.tourHandoffTarget, this.sceneDestinationTarget, handoff);
-        this.camera.lookAt(this.blendedTarget);
+        this.lookAt(this.blendedTarget);
         if (handoff >= 1 && !settings.tourPaused) this.sceneHandoffActive = false;
       } else {
         if (!settings.tourPaused) this.tourTime += settings.delta * (settings.reducedMotion ? 0.38 : 1);
@@ -123,7 +133,7 @@ export class CameraManager {
         const handoff = THREE.MathUtils.smoothstep(settings.elapsed - this.tourHandoffStarted, 0, handoffDuration);
         this.camera.position.lerpVectors(this.tourHandoffPosition, this.desiredTourPosition, handoff);
         this.blendedTarget.lerpVectors(this.tourHandoffTarget, this.desiredTourTarget, handoff);
-        this.camera.lookAt(this.blendedTarget);
+        this.lookAt(this.blendedTarget);
         const tourIndex = Math.floor(tourProgress * this.manifest.cameraLandmarks.length) % this.manifest.cameraLandmarks.length;
         if (tourIndex !== this.lastTourIndex) {
           this.lastTourIndex = tourIndex;
@@ -131,13 +141,13 @@ export class CameraManager {
         }
       }
     } else if (this.mode === 'orbit') {
-      if (settings.autoRotate) this.orbitYaw += settings.delta * (settings.reducedMotion ? 0.08 : 0.16);
+      if (settings.autoRotate && !this.orbitDragging) this.orbitYaw += settings.delta * (settings.reducedMotion ? 0.08 : 0.16);
       this.camera.position.set(
         this.orbitTarget.x + Math.cos(this.orbitYaw) * Math.cos(this.orbitPitch) * this.orbitRadius,
         this.orbitTarget.y + Math.sin(this.orbitPitch) * this.orbitRadius,
         this.orbitTarget.z + Math.sin(this.orbitYaw) * Math.cos(this.orbitPitch) * this.orbitRadius,
       );
-      this.camera.lookAt(this.orbitTarget);
+      this.lookAt(this.orbitTarget);
     } else {
       this.updateFly(settings.delta, settings.seed);
     }
@@ -155,7 +165,7 @@ export class CameraManager {
       const fixedBlend = THREE.MathUtils.smoothstep(settings.elapsed - this.fixedViewStarted, 0, settings.reducedMotion ? 2.4 : 1.25);
       this.camera.position.lerpVectors(this.fixedViewFromPosition, this.fixedViewPosition, fixedBlend);
       this.blendedTarget.lerpVectors(this.fixedViewFromTarget, this.fixedViewTarget, fixedBlend);
-      this.camera.lookAt(this.blendedTarget);
+      this.lookAt(this.blendedTarget);
     } else {
       this.lastFixedViewId = null;
     }
@@ -189,6 +199,10 @@ export class CameraManager {
     this.orbitRadius = THREE.MathUtils.clamp(this.orbitRadius + delta, 27, 115);
   }
 
+  setOrbitInteraction(active: boolean) {
+    this.orbitDragging = active;
+  }
+
   private createTourCurves(manifest: WorldManifest) {
     return {
       positions: new THREE.CatmullRomCurve3(manifest.cameraLandmarks.map((landmark) => new THREE.Vector3(...landmark.position)), true, 'catmullrom', 0.26),
@@ -201,6 +215,12 @@ export class CameraManager {
     this.camera.getWorldDirection(this.forward);
     this.tourHandoffTarget.copy(this.camera.position).addScaledVector(this.forward, 20);
     this.tourHandoffStarted = elapsed;
+  }
+
+  private lookAt(target: THREE.Vector3) {
+    this.camera.lookAt(target);
+    this.focusTarget.copy(target);
+    this.focusTargetValid = true;
   }
 
   private findLandmarkProgress(sceneIndex: number) {
@@ -262,9 +282,9 @@ export class CameraManager {
   private readonly onKeyUp = (event: KeyboardEvent) => this.keys.delete(event.key.toLowerCase());
   private readonly onPointerDown = () => {
     if (this.mode === 'fly') this.domElement?.requestPointerLock();
-    if (this.mode === 'orbit') this.orbitDragging = true;
+    if (this.mode === 'orbit') this.setOrbitInteraction(true);
   };
-  private readonly onPointerUp = () => { this.orbitDragging = false; };
+  private readonly onPointerUp = () => { this.setOrbitInteraction(false); };
   private readonly onMouseMove = (event: MouseEvent) => {
     if (this.mode === 'fly' && document.pointerLockElement === this.domElement) {
       this.flyYaw -= event.movementX * 0.0022;
@@ -283,10 +303,10 @@ export class CameraManager {
       this.touchX = event.touches[0].clientX;
       this.touchY = event.touches[0].clientY;
       this.pinchDistance = 0;
-      this.orbitDragging = true;
+      this.setOrbitInteraction(true);
     } else if (event.touches.length >= 2) {
       this.pinchDistance = this.getPinchDistance(event.touches);
-      this.orbitDragging = false;
+      this.setOrbitInteraction(false);
     }
   };
   private readonly onTouchMove = (event: TouchEvent) => {
@@ -308,7 +328,7 @@ export class CameraManager {
     if (this.mode !== 'orbit') return;
     event.preventDefault();
     this.pinchDistance = 0;
-    this.orbitDragging = event.touches.length === 1;
+    this.setOrbitInteraction(event.touches.length === 1);
     if (event.touches.length === 1) {
       this.touchX = event.touches[0].clientX;
       this.touchY = event.touches[0].clientY;
