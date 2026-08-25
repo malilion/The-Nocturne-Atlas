@@ -8,9 +8,9 @@ An original, seed-driven 3D wizarding world built with Three.js and TypeScript.
 
 ## Scene Gallery / 場景圖庫
 
-The outdoor gallery was captured from the deterministic `MAGIC-001` world with generator `1.8.0`, Medium quality, and night mode. Every image is an actual scene-switch destination with the tour paused after arrival. Generator `1.9.0` preserves these outdoor destinations and adds the Great Hall interior described below.
+The gallery was captured from the deterministic `MAGIC-001` world with generator `1.9.0`, Medium quality, and night mode. All eight images are actual scene-switch destinations with the tour paused after arrival, including the seeded Great Hall interior.
 
-戶外圖庫擷取自固定種子 `MAGIC-001`、生成器 `1.8.0`、中等畫質與夜間模式。每張圖片都是實際可切換的場景目的地，抵達後導覽會保持暫停。生成器 `1.9.0` 保留這些戶外目的地，並新增下方說明的大廳室內場景。
+圖庫擷取自固定種子 `MAGIC-001`、生成器 `1.9.0`、中等畫質與夜間模式。八張圖片都是實際可切換的場景目的地，抵達後導覽會保持暫停，並包含種子化城堡大廳室內場景。
 
 | 1 · Castle of Veyra / 維拉城堡 | 2 · Lumen Row / 流明街村莊 |
 | --- | --- |
@@ -24,9 +24,9 @@ The outdoor gallery was captured from the deterministic `MAGIC-001` world with g
 | --- | --- |
 | ![Astral Spire upper observatory and floating candles](docs/screenshots/tower.png) | ![Moving Stair courtyard connection study](docs/screenshots/courtyard-stair.png) |
 
-### 7 · Aerial Survey / 空中勘察
-
-![Aerial survey showing the deterministic world zoning overview](docs/screenshots/aerial.png)
+| 7 · Aerial Survey / 空中勘察 | 8 · The Great Hall / 城堡大廳 |
+| --- | --- |
+| ![Aerial survey showing the deterministic world zoning overview](docs/screenshots/aerial.png) | ![The Great Hall interior with floating candles, long tables, banners, and a dais](docs/screenshots/great-hall.png) |
 
 ---
 
@@ -70,12 +70,12 @@ Create a production build with `npm run build`. Run the deterministic regression
 
 ### Validation evidence
 
-- Seven fixed destinations were browser-checked and recaptured from generator `1.8.0` at 1280×720.
+- All eight fixed destinations were browser-checked and recaptured from generator `1.9.0` at 1280×720.
 - Village, Forest, Tower, and Moving Stair cameras satisfy presentation-clearance contracts across twenty regression seeds.
 - Day/night transition, automatic orbit, mouse drag, and wheel zoom were exercised in the local WebGL experience. Touch input shares the tested orbit constraints and adds one-finger drag plus two-finger pinch.
 - All 33 deterministic, lifecycle, shader, environment, collision, camera, interior, and presentation tests pass. Coverage includes deterministic Great Hall furnishing, grounded movement, world/lake/castle/village collision, seeded detail profiles, night fill ownership, exposure, fog density, daylight transition, shadow toggles, landmark-relative orbit focus, drag-paused automatic rotation, and idempotent cleanup.
 - Production build and lint complete without errors. The build currently reports a non-blocking warning for the Three.js client chunk exceeding 500 kB after minification.
-- The generator `1.8.0` Medium-quality castle baseline reports 172 draw calls, 63k triangles, and 64 geometries, within the Phase 1 draw-call budget. Generator `1.9.0` adds instanced interior furnishings; a fresh hardware sample is recommended. Final 1080p FPS qualification remains hardware-dependent.
+- The generator `1.9.0` Medium-quality castle view reports 200 draw calls, 66k triangles, and 79 geometries at 1280×720, within the Phase 1 draw-call budget. The Great Hall view reports 129 draw calls and 60k triangles. Final 1080p FPS qualification remains hardware-dependent.
 
 ### Implementation notes
 
@@ -85,7 +85,7 @@ Terrain, castle stone, slate roofs, tree trunks, and village timber use seed-awa
 
 Generator `1.8.0` adds a rendered gatehouse with an arched portal, instanced castle buttresses and battlements, seeded village chimneys, framed windows and hanging signs, plus leaning trunks and two-tier near-tree canopies. Detail profiles use isolated seed namespaces so silhouette changes do not cascade into unrelated systems. Village windows and trim are instanced in shared batches to keep added draw-call cost bounded.
 
-Generator `1.9.0` replaces the solid Great Hall mass with a hollow architectural shell while preserving its exterior roofline. Scene `8` presents a seeded interior with long tables, benches, dais, lectern, banners, glowing windows, rafters, and twenty-four floating candles. Repeated seeds reproduce the same candle layout.
+Generator `1.9.0` replaces the solid Great Hall mass with a hollow architectural shell while preserving its exterior roofline. Scene `8` presents a seeded interior with long tables, benches, dais, lectern, banners, glowing windows, rafters, twenty-four floating candles, and a bounded warm candle-light rig for readable night interiors. Repeated seeds reproduce the same candle layout.
 
 Regeneration uses an atomic swap: a new world is constructed and validated before it replaces the active root. Shared resources are deduplicated through an idempotent registry before disposal. Failed generation leaves the existing world visible, while WebGL context restoration triggers a validated rebuild. The `20× rebuild audit` tracks GPU geometry and browser heap samples when heap telemetry is available.
 
@@ -139,12 +139,12 @@ npm run dev
 
 ### 驗證結果
 
-- 七個固定場景目的地皆已使用生成器 `1.8.0` 以 1280×720 實際檢查並重新截圖。
+- 八個固定場景目的地皆已使用生成器 `1.9.0` 以 1280×720 實際檢查並重新截圖。
 - 村莊、森林、高塔與移動階梯鏡頭，在二十組回歸種子中皆符合取景淨空規則。
 - 日夜切換、自動環繞、滑鼠拖曳與滾輪縮放已在本機 WebGL 場景操作驗證。觸控操作沿用相同環繞限制，並加入單指拖曳與雙指縮放。
 - 33 項固定性、生命週期、Shader、環境、碰撞、鏡頭、室內與場景呈現測試全數通過。涵蓋固定種子大廳陳設、貼地移動、世界／湖泊／城堡／村莊碰撞、種子化細節設定、夜間補光管理、曝光、霧密度、日夜轉換、陰影切換、地標中心環繞、拖曳暫停自轉與重複清理安全性。
 - 正式建置與 Lint 均無錯誤。目前僅有 Three.js 用戶端區塊壓縮後超過 500 kB 的非阻擋警告。
-- 生成器 `1.8.0` 的中等畫質城堡基準為 172 Draw Calls、63k 三角形與 64 個 Geometry，符合 Phase 1 的 Draw Call 預算。生成器 `1.9.0` 加入實例化室內陳設，建議重新進行硬體抽樣。最終 1080p FPS 仍需依實際硬體確認。
+- 生成器 `1.9.0` 的中等畫質城堡視角在 1280×720 下為 200 Draw Calls、66k 三角形與 79 個 Geometry，符合 Phase 1 的 Draw Call 預算；城堡大廳視角則為 129 Draw Calls 與 60k 三角形。最終 1080p FPS 仍需依實際硬體確認。
 
 ### 實作說明
 
@@ -154,7 +154,7 @@ npm run dev
 
 生成器 `1.8.0` 新增具有拱門入口的城門建築、實例化城堡扶壁與垛口、種子化村莊煙囪、窗框與懸掛招牌，以及傾斜樹幹和近景雙層樹冠。細節設定使用隔離的種子命名空間，輪廓變化不會連帶改變其他系統。村莊窗戶與飾條以共用 Instancing 批次繪製，使新增細節的 Draw Call 成本維持受控。
 
-生成器 `1.9.0` 將原本實心的城堡大廳改為中空建築外殼，同時保留外部屋頂輪廓。場景 `8` 會呈現具有長桌、長椅、講台、旗幟、發光窗戶、屋樑與二十四根漂浮蠟燭的種子化室內空間；相同種子會重現相同的燭光配置。
+生成器 `1.9.0` 將原本實心的城堡大廳改為中空建築外殼，同時保留外部屋頂輪廓。場景 `8` 會呈現具有長桌、長椅、講台、旗幟、發光窗戶、屋樑、二十四根漂浮蠟燭，以及範圍受限的暖色燭光補光；相同種子會重現相同的蠟燭配置。
 
 世界重建採用原子交換：新世界完成建立與驗證後才取代目前場景。共用資源由可重複安全清理的 Registry 去重並釋放。生成失敗時舊世界仍可使用；WebGL Context 恢復後則會觸發已驗證的重建流程。`20× rebuild audit` 會記錄 GPU Geometry，以及瀏覽器提供 Heap Telemetry 時的記憶體樣本。
 

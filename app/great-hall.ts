@@ -165,6 +165,19 @@ export function createGreatHallArchitecture(seed: string, materials: GreatHallMa
   }
   hall.add(wax, flames);
 
+  const candleLightRig = new THREE.Group();
+  candleLightRig.name = 'great-hall-candle-light-rig';
+  for (const [x, y, z, intensity] of [
+    [-4.2, 4.6, -0.5, 18],
+    [4.2, 4.6, -0.5, 18],
+    [0, 4.8, -3.2, 13],
+  ] as const) {
+    const light = new THREE.PointLight(0xffb36b, intensity, 14, 2);
+    light.position.set(x, y, z);
+    candleLightRig.add(light);
+  }
+  hall.add(candleLightRig);
+
   hall.traverse((object) => {
     if (object instanceof THREE.InstancedMesh) object.instanceMatrix.needsUpdate = true;
   });

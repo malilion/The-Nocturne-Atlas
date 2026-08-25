@@ -24,11 +24,13 @@ test('Great Hall creates a hollow shell and complete interior landmarks', () => 
     'great-hall-banners',
     'great-hall-rafters',
     'great-hall-floating-candles',
+    'great-hall-candle-light-rig',
   ];
 
   for (const name of requiredNames) assert.ok(hall.getObjectByName(name), `Missing ${name}`);
   assert.equal((hall.getObjectByName('great-hall-windows') as THREE.InstancedMesh).count, 12);
   assert.equal((hall.getObjectByName('great-hall-floating-candles') as THREE.InstancedMesh).count, 24);
+  assert.equal((hall.getObjectByName('great-hall-candle-light-rig') as THREE.Group).children.length, 3);
 });
 
 test('Great Hall candle layout is deterministic and seed-sensitive', () => {
