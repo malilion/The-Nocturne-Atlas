@@ -6,6 +6,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { createRoofMaterial, createStoneMaterial, createTerrainMaterial, createWoodMaterial } from './procedural-materials';
 import { createWorldManifest, hashSeed, mulberry32, terrainHeight, type QualityTier, type WorldManifest } from './world-core';
 
 const DEFAULT_SEED = 'MAGIC-001';
@@ -67,13 +68,13 @@ function createWorld(seedText: string, quality: QualityTier) {
   terrainGeometry.computeVertexNormals();
   const terrain = new THREE.Mesh(
     terrainGeometry,
-    new THREE.MeshStandardMaterial({ color: 0x17221f, roughness: 0.92, metalness: 0.02 }),
+    createTerrainMaterial(seed),
   );
   terrain.receiveShadow = true;
   root.add(terrain);
 
-  const stone = new THREE.MeshStandardMaterial({ color: 0x323941, roughness: 0.78, metalness: 0.08 });
-  const roof = new THREE.MeshStandardMaterial({ color: 0x11161d, roughness: 0.55, metalness: 0.18 });
+  const stone = createStoneMaterial(seed);
+  const roof = createRoofMaterial(seed);
   const windowMaterial = new THREE.MeshBasicMaterial({ color: new THREE.Color().setRGB(3.2, 1.2, 0.28), toneMapped: false });
   const castle = new THREE.Group();
   castle.position.set(-7, terrainHeight(-7, -4, seed) + 0.2, -4);
@@ -172,7 +173,7 @@ function createWorld(seedText: string, quality: QualityTier) {
   root.add(lake);
 
   const trunkGeometry = new THREE.CylinderGeometry(0.22, 0.42, 3.5, 6);
-  const trunkMaterial = new THREE.MeshStandardMaterial({ color: 0x1d1615, roughness: 1 });
+  const trunkMaterial = createWoodMaterial(hashSeed(`${manifest.seed}::forest/wood`));
   const trunks = new THREE.InstancedMesh(trunkGeometry, trunkMaterial, manifest.counts.trees);
   const canopyGeometry = new THREE.ConeGeometry(1.5, 5.2, 7);
   const canopyMaterial = new THREE.MeshStandardMaterial({ color: 0x111c18, roughness: 0.94 });
@@ -217,12 +218,62 @@ function createWorld(seedText: string, quality: QualityTier) {
   }
   root.add(fireflies);
 
+  const wispPositions = new Float32Array(manifest.counts.wisps * 3);
+  const wispPhases = new Float32Array(manifest.counts.wisps);
+  const wispRandom = mulberry32(hashSeed(`${manifest.seed}::magic/wisps`));
+  for (let i = 0; i < manifest.counts.wisps; i += 1) {
+    const angle = wispRandom() * Math.PI * 2;
+    const radius = 8 + wispRandom() * 42;
+    const x = -7 + Math.cos(angle) * radius;
+    const z = -4 + Math.sin(angle) * radius;
+    wispPositions[i * 3] = x;
+    wispPositions[i * 3 + 1] = terrainHeight(x, z, seed) + 2 + wispRandom() * 9;
+    wispPositions[i * 3 + 2] = z;
+    wispPhases[i] = wispRandom() * Math.PI * 2;
+  }
+  const wispGeometry = new THREE.BufferGeometry();
+  wispGeometry.setAttribute('position', new THREE.BufferAttribute(wispPositions, 3));
+  wispGeometry.setAttribute('aPhase', new THREE.BufferAttribute(wispPhases, 1));
+  const magicMaterial = new THREE.ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    toneMapped: false,
+    uniforms: { uTime: { value: 0 } },
+    vertexShader: `
+      uniform float uTime;
+      attribute float aPhase;
+      varying float vPulse;
+      void main() {
+        vec3 p = position;
+        p.x += sin(uTime * 0.42 + aPhase) * 0.8;
+        p.y += sin(uTime * 0.7 + aPhase * 1.7) * 0.55;
+        p.z += cos(uTime * 0.36 + aPhase) * 0.8;
+        vec4 mvPosition = modelViewMatrix * vec4(p, 1.0);
+        vPulse = 0.62 + sin(uTime * 1.4 + aPhase) * 0.28;
+        gl_PointSize = (16.0 + vPulse * 12.0) / max(1.0, -mvPosition.z * 0.12);
+        gl_Position = projectionMatrix * mvPosition;
+      }
+    `,
+    fragmentShader: `
+      varying float vPulse;
+      void main() {
+        float distanceToCenter = length(gl_PointCoord - 0.5);
+        float core = smoothstep(0.5, 0.0, distanceToCenter);
+        float halo = smoothstep(0.5, 0.12, distanceToCenter);
+        vec3 color = mix(vec3(0.32, 0.75, 1.6), vec3(1.15, 0.48, 1.8), vPulse);
+        gl_FragColor = vec4(color, core * halo * (0.35 + vPulse * 0.45));
+      }
+    `,
+  });
+  root.add(new THREE.Points(wispGeometry, magicMaterial));
+
   const village = new THREE.Group();
   village.name = 'village-of-lumen-row';
   root.add(village);
   const houseGeometry = new THREE.BoxGeometry(1, 1, 1);
   const plaster = new THREE.MeshStandardMaterial({ color: 0x544b43, roughness: 0.9 });
-  const timber = new THREE.MeshStandardMaterial({ color: 0x201b19, roughness: 0.88 });
+  const timber = createWoodMaterial(hashSeed(`${manifest.seed}::village/wood`));
   const villageRoof = new THREE.ConeGeometry(1, 1, 4);
   const roadMaterial = new THREE.MeshStandardMaterial({ color: 0x242321, roughness: 1 });
   const road = new THREE.Mesh(new THREE.PlaneGeometry(41, 4.2, 10, 1), roadMaterial);
@@ -320,7 +371,7 @@ function createWorld(seedText: string, quality: QualityTier) {
   zoneDebug.visible = false;
   root.add(zoneDebug);
 
-  return { root, waterMaterial, stairRoot, candleRoot, zoneDebug, manifest };
+  return { root, waterMaterial, magicMaterial, stairRoot, candleRoot, zoneDebug, manifest };
 }
 
 export default function Home() {
@@ -471,6 +522,7 @@ export default function Home() {
       renderer.toneMappingExposure = postRef.current ? 1.05 : 0.82;
       bloomPass.strength = qualityRef.current === 'low' ? 0.28 : qualityRef.current === 'medium' ? 0.48 : 0.62;
       world.waterMaterial.uniforms.uTime.value = elapsed;
+      world.magicMaterial.uniforms.uTime.value = elapsed;
       world.zoneDebug.visible = zoneDebugRef.current;
       const stairPhase = (elapsed % 16) / 16;
       const stairBlend = stairPhase < 0.5 ? THREE.MathUtils.smoothstep(stairPhase, 0.08, 0.42) : 1 - THREE.MathUtils.smoothstep(stairPhase, 0.58, 0.92);
