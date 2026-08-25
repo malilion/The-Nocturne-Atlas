@@ -9,6 +9,7 @@ import { SSAOPass } from 'three/addons/postprocessing/SSAOPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { CameraManager, type CameraMode, type FixedView, type LandmarkId } from './camera-manager';
 import { EnvironmentSystem, type TimeOfDay } from './environment-system';
+import { createGreatHallArchitecture } from './great-hall';
 import { createCastleDetailProfile, createForestTreeDetailProfile, createVillageDetailProfile } from './procedural-details';
 import { createRoofMaterial, createStoneMaterial, createTerrainMaterial, createWoodMaterial } from './procedural-materials';
 import { ResourceRegistry } from './resource-registry';
@@ -21,6 +22,11 @@ const SCENE_LABELS: Record<LandmarkId, string> = {
   lake: 'Lake',
   forest: 'Forest',
   tower: 'Tower',
+};
+const FIXED_SCENE_LABELS: Partial<Record<FixedView['id'], string>> = {
+  'courtyard-stair': 'Stairs',
+  'aerial-orbit': 'Aerial',
+  'great-hall': 'Hall',
 };
 
 interface PerformanceStats {
@@ -140,23 +146,13 @@ function createWorld(seedText: string, quality: QualityTier) {
     .filter((node) => node.type === 'tower')
     .forEach((node, index) => addTower(node.position[0], node.position[2], node.radius, node.height, [0.4, 1.4, 0.8, 1.9][index]));
 
-  const hall = new THREE.Mesh(new THREE.BoxGeometry(17, 9, 10), stone);
-  hall.position.set(-1, 4.5, 0);
-  hall.castShadow = true;
-  hall.receiveShadow = true;
-  castle.add(hall);
-  const hallRoof = new THREE.Mesh(new THREE.ConeGeometry(8.7, 7, 4), roof);
-  hallRoof.rotation.y = Math.PI / 4;
-  hallRoof.scale.z = 0.72;
-  hallRoof.position.set(-1, 12.2, 0);
-  hallRoof.castShadow = true;
-  castle.add(hallRoof);
-
-  for (let x = -7; x <= 5; x += 3) {
-    const glowingWindow = new THREE.Mesh(new THREE.PlaneGeometry(1.15, 2), windowMaterial);
-    glowingWindow.position.set(x, 5, 5.01);
-    castle.add(glowingWindow);
-  }
+  const greatHall = createGreatHallArchitecture(manifest.seed, {
+    stone,
+    roof,
+    wood: createWoodMaterial(hashSeed(`${manifest.seed}::castle/interior/wood`)),
+    glow: windowMaterial,
+  });
+  castle.add(greatHall);
 
   const bridge = new THREE.Mesh(new THREE.BoxGeometry(12, 0.8, 2), stone);
   bridge.position.set(-8, 10, 3.6);
@@ -1100,6 +1096,7 @@ export default function Home() {
       if (key >= '1' && key <= '5') selectScene(manifest.cameraLandmarks[Number(key) - 1].id);
       if (key === '6') selectFixedView('courtyard-stair');
       if (key === '7') selectFixedView('aerial-orbit');
+      if (key === '8') selectFixedView('great-hall');
       if (key === 'n') toggleTimeOfDay();
       if (key === ' ' && modeRef.current === 'tour') {
         event.preventDefault();
@@ -1167,7 +1164,7 @@ export default function Home() {
         {soakAudit.finalHeapMb !== null && <p className="audit-heap">Heap sample · {soakAudit.baselineHeapMb ?? 'N/A'}→{soakAudit.finalHeapMb} MB</p>}
         <button className="manifest-copy" onClick={copyManifest}>{manifestCopied ? 'Manifest copied' : 'Copy world manifest'}</button>
       </aside>
-      {entered && <nav className="scene-switcher" aria-label="Scene selection"><span>Jump to</span>{manifest.cameraLandmarks.map((landmark, index) => <button key={landmark.id} className={!fixedView && tourLocation.id === landmark.id && (mode === 'tour' || mode === 'orbit') ? 'active' : ''} onClick={() => selectScene(landmark.id)} aria-label={`Go to ${landmark.label}`}><kbd>{index + 1}</kbd>{SCENE_LABELS[landmark.id]}</button>)}{manifest.validationViews.filter((view) => view.id === 'courtyard-stair' || view.id === 'aerial-orbit').map((view, index) => <button key={view.id} className={fixedView?.id === view.id ? 'active' : ''} onClick={() => selectFixedView(view.id)} aria-label={`Go to ${view.label}`}><kbd>{index + 6}</kbd>{view.id === 'courtyard-stair' ? 'Stairs' : 'Aerial'}</button>)}</nav>}
+      {entered && <nav className="scene-switcher" aria-label="Scene selection"><span>Jump to</span>{manifest.cameraLandmarks.map((landmark, index) => <button key={landmark.id} className={!fixedView && tourLocation.id === landmark.id && (mode === 'tour' || mode === 'orbit') ? 'active' : ''} onClick={() => selectScene(landmark.id)} aria-label={`Go to ${landmark.label}`}><kbd>{index + 1}</kbd>{SCENE_LABELS[landmark.id]}</button>)}{manifest.validationViews.filter((view) => view.id === 'courtyard-stair' || view.id === 'aerial-orbit' || view.id === 'great-hall').map((view, index) => <button key={view.id} className={fixedView?.id === view.id ? 'active' : ''} onClick={() => selectFixedView(view.id)} aria-label={`Go to ${view.label}`}><kbd>{index + 6}</kbd>{FIXED_SCENE_LABELS[view.id]}</button>)}</nav>}
       <footer className="scene-footer">
         <div className="landmark-caption"><span>{fixedView ? 'V' : mode === 'tour' ? String(manifest.cameraLandmarks.findIndex((landmark) => landmark.id === tourLocation.id) + 1).padStart(2, '0') : mode === 'walk' ? 'G' : mode === 'fly' ? 'F' : 'O'}</span><p><strong>{fixedView ? fixedView.label : mode === 'tour' ? tourLocation.label : mode === 'walk' ? 'Ground walk' : mode === 'fly' ? 'Free flight' : `${tourLocation.label} orbit`}</strong><small>{fixedView ? fixedView.subtitle : mode === 'tour' ? tourLocation.subtitle : mode === 'walk' ? 'Terrain-bound collision navigation' : mode === 'fly' ? 'Manual navigation' : 'Drag to inspect · Auto resumes on release'}</small></p>{mode === 'tour' && <button className="tour-pause" onClick={toggleTourPause}>{tourPaused ? 'Resume' : 'Pause'}</button>}</div>
         <nav className="camera-modes" aria-label="Camera mode">
