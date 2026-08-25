@@ -400,25 +400,22 @@ function createWorld(seedText: string, quality: QualityTier) {
   road.position.set(-31, terrainHeight(-31, 13, seed) + 0.12, 13);
   road.receiveShadow = true;
   village.add(road);
-  for (let i = 0; i < manifest.counts.houses; i += 1) {
-    const side = i % 2 === 0 ? -1 : 1;
-    const x = -49 + Math.floor(i / 2) * 5.2 + random() * 1.1;
-    const z = 13 + side * (4.2 + random() * 2.5);
+  manifest.villageBuildings.forEach((building, index) => {
+    const [x, z] = building.position;
     const y = terrainHeight(x, z, seed);
-    const width = 2.5 + random() * 1.7;
-    const depth = 2.8 + random() * 1.5;
-    const height = 3 + random() * 2.4;
+    const { width, depth, height, side } = building;
     const house = new THREE.Group();
+    house.name = building.id;
     house.position.set(x, y, z);
-    house.rotation.y = -0.14 + (random() - 0.5) * 0.18;
-    const body = new THREE.Mesh(houseGeometry, i % 3 === 0 ? timber : plaster);
+    house.rotation.y = building.rotation;
+    const body = new THREE.Mesh(houseGeometry, index % 3 === 0 ? timber : plaster);
     body.scale.set(width, height, depth);
     body.position.y = height / 2;
     body.castShadow = true;
     body.receiveShadow = true;
     house.add(body);
     const cap = new THREE.Mesh(villageRoof, roof);
-    cap.scale.set(width * 0.84, 2.3 + random(), depth * 0.84);
+    cap.scale.set(width * 0.84, building.roofHeight, depth * 0.84);
     cap.rotation.y = Math.PI / 4;
     cap.position.y = height + 1.2;
     cap.castShadow = true;
@@ -428,7 +425,7 @@ function createWorld(seedText: string, quality: QualityTier) {
     litWindow.rotation.y = side < 0 ? 0 : Math.PI;
     house.add(litWindow);
     village.add(house);
-  }
+  });
 
   const stairRoot = new THREE.Group();
   stairRoot.name = 'moving-staircase';

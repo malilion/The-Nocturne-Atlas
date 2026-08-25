@@ -46,6 +46,8 @@ WebGL context loss pauses rendering and surfaces a recoverable status; context r
 
 The castle manifest is a connected topology of towers, hall, courtyard, gate, corridors, bridges, and one moving-stair route. Runtime validation rejects missing endpoints, disconnected nodes, unsafe camera landmarks, invalid zone boundaries, or mismatched procedural counts. The staircase rotates between two physical landing platforms with quaternion interpolation.
 
+Village buildings are planned in their own namespaced seed stream before geometry creation. Each manifest record includes footprint, height, road-facing rotation, side, and roof dimensions. Validation enforces road setback, zone membership, castle/lake exclusion, terrain slope budget, unique IDs, and pairwise footprint separation; increasing village density preserves the earlier buildings instead of cascading into unrelated systems.
+
 The cinematic camera follows seed-aware Catmull–Rom position and look-target curves through five terrain-safe landmarks: castle, village, lake, forest, and tower detail. Validation samples every segment of the closed tour across twenty regression seeds and requires terrain clearance along the route, not only at its control points. Returning from Free Fly or Orbit uses a smooth handoff from the current view. A reduced-motion option slows the tour and lengthens the handoff.
 
 This is a polished Phase 1 vertical slice. Collision, interiors, NPCs, quests, audio, and world streaming are intentionally outside its scope.
