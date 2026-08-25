@@ -2,6 +2,26 @@
 
 An original, seed-driven 3D wizarding world built with Three.js and TypeScript. A seed deterministically shapes the terrain, castle proportions, village, lake, forest, floating lights, and cinematic composition.
 
+## Scene gallery
+
+Captured from the deterministic `MAGIC-001` world at Medium quality in night mode. Each image is an actual in-app scene-switch destination; the tour remains paused after every transition.
+
+| 1 · Castle of Veyra | 2 · Lumen Row village |
+| --- | --- |
+| ![Castle of Veyra scene with gothic towers and floating candles](docs/screenshots/castle.png) | ![Lumen Row village approach among castle walls and forest](docs/screenshots/village.png) |
+
+| 3 · Mirror Mere lake | 4 · The Thorn Veil forest |
+| --- | --- |
+| ![Mirror Mere moonlit shoreline and glowing wisps](docs/screenshots/lake.png) | ![The Thorn Veil procedural forest with fireflies](docs/screenshots/forest.png) |
+
+| 5 · Astral Spire | 6 · Moving Stair courtyard |
+| --- | --- |
+| ![Astral Spire upper observatory and floating candles](docs/screenshots/tower.png) | ![Moving Stair courtyard connection study](docs/screenshots/courtyard-stair.png) |
+
+### 7 · Aerial Survey
+
+![Aerial survey showing the deterministic world zoning overview](docs/screenshots/aerial.png)
+
 ## Explore
 
 - `T` — cinematic tour
