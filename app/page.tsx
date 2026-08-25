@@ -1025,7 +1025,7 @@ export default function Home() {
       autoRotateRef.current = false;
       setAutoRotate(false);
     }
-    if (nextMode !== 'fly' && document.pointerLockElement) document.exitPointerLock();
+    if (nextMode !== 'fly' && nextMode !== 'walk' && document.pointerLockElement) document.exitPointerLock();
   }, []);
 
   const selectScene = useCallback((sceneId: LandmarkId) => {
@@ -1092,9 +1092,10 @@ export default function Home() {
       if (event.target instanceof HTMLInputElement) return;
       const key = event.key.toLowerCase();
       if (key === 't') selectMode('tour');
+      if (key === 'g') selectMode('walk');
       if (key === 'f') selectMode('fly');
       if (key === 'o') selectMode('orbit');
-      if (key === 'a') toggleAutoRotate();
+      if (key === 'a' && modeRef.current !== 'walk' && modeRef.current !== 'fly') toggleAutoRotate();
       if (key === 'r') randomSeed();
       if (key >= '1' && key <= '5') selectScene(manifest.cameraLandmarks[Number(key) - 1].id);
       if (key === '6') selectFixedView('courtyard-stair');
@@ -1166,16 +1167,17 @@ export default function Home() {
         {soakAudit.finalHeapMb !== null && <p className="audit-heap">Heap sample · {soakAudit.baselineHeapMb ?? 'N/A'}→{soakAudit.finalHeapMb} MB</p>}
         <button className="manifest-copy" onClick={copyManifest}>{manifestCopied ? 'Manifest copied' : 'Copy world manifest'}</button>
       </aside>
-      {entered && <nav className="scene-switcher" aria-label="Scene selection"><span>Jump to</span>{manifest.cameraLandmarks.map((landmark, index) => <button key={landmark.id} className={!fixedView && tourLocation.id === landmark.id && mode !== 'fly' ? 'active' : ''} onClick={() => selectScene(landmark.id)} aria-label={`Go to ${landmark.label}`}><kbd>{index + 1}</kbd>{SCENE_LABELS[landmark.id]}</button>)}{manifest.validationViews.filter((view) => view.id === 'courtyard-stair' || view.id === 'aerial-orbit').map((view, index) => <button key={view.id} className={fixedView?.id === view.id ? 'active' : ''} onClick={() => selectFixedView(view.id)} aria-label={`Go to ${view.label}`}><kbd>{index + 6}</kbd>{view.id === 'courtyard-stair' ? 'Stairs' : 'Aerial'}</button>)}</nav>}
+      {entered && <nav className="scene-switcher" aria-label="Scene selection"><span>Jump to</span>{manifest.cameraLandmarks.map((landmark, index) => <button key={landmark.id} className={!fixedView && tourLocation.id === landmark.id && (mode === 'tour' || mode === 'orbit') ? 'active' : ''} onClick={() => selectScene(landmark.id)} aria-label={`Go to ${landmark.label}`}><kbd>{index + 1}</kbd>{SCENE_LABELS[landmark.id]}</button>)}{manifest.validationViews.filter((view) => view.id === 'courtyard-stair' || view.id === 'aerial-orbit').map((view, index) => <button key={view.id} className={fixedView?.id === view.id ? 'active' : ''} onClick={() => selectFixedView(view.id)} aria-label={`Go to ${view.label}`}><kbd>{index + 6}</kbd>{view.id === 'courtyard-stair' ? 'Stairs' : 'Aerial'}</button>)}</nav>}
       <footer className="scene-footer">
-        <div className="landmark-caption"><span>{fixedView ? 'V' : mode === 'tour' ? String(manifest.cameraLandmarks.findIndex((landmark) => landmark.id === tourLocation.id) + 1).padStart(2, '0') : mode === 'fly' ? 'F' : 'O'}</span><p><strong>{fixedView ? fixedView.label : mode === 'tour' ? tourLocation.label : mode === 'fly' ? 'Free flight' : `${tourLocation.label} orbit`}</strong><small>{fixedView ? fixedView.subtitle : mode === 'tour' ? tourLocation.subtitle : mode === 'fly' ? 'Manual navigation' : 'Drag to inspect · Auto resumes on release'}</small></p>{mode === 'tour' && <button className="tour-pause" onClick={toggleTourPause}>{tourPaused ? 'Resume' : 'Pause'}</button>}</div>
+        <div className="landmark-caption"><span>{fixedView ? 'V' : mode === 'tour' ? String(manifest.cameraLandmarks.findIndex((landmark) => landmark.id === tourLocation.id) + 1).padStart(2, '0') : mode === 'walk' ? 'G' : mode === 'fly' ? 'F' : 'O'}</span><p><strong>{fixedView ? fixedView.label : mode === 'tour' ? tourLocation.label : mode === 'walk' ? 'Ground walk' : mode === 'fly' ? 'Free flight' : `${tourLocation.label} orbit`}</strong><small>{fixedView ? fixedView.subtitle : mode === 'tour' ? tourLocation.subtitle : mode === 'walk' ? 'Terrain-bound collision navigation' : mode === 'fly' ? 'Manual navigation' : 'Drag to inspect · Auto resumes on release'}</small></p>{mode === 'tour' && <button className="tour-pause" onClick={toggleTourPause}>{tourPaused ? 'Resume' : 'Pause'}</button>}</div>
         <nav className="camera-modes" aria-label="Camera mode">
           <button className={mode === 'tour' ? 'active' : ''} onClick={() => selectMode('tour')}><kbd>T</kbd> Tour</button>
+          <button className={mode === 'walk' ? 'active' : ''} onClick={() => selectMode('walk')}><kbd>G</kbd> Walk</button>
           <button className={mode === 'fly' ? 'active' : ''} onClick={() => selectMode('fly')}><kbd>F</kbd> Free fly</button>
           <button className={mode === 'orbit' ? 'active' : ''} onClick={() => selectMode('orbit')}><kbd>O</kbd> Orbit</button>
           <button className={autoRotate ? 'active' : ''} onClick={toggleAutoRotate} aria-label={`${autoRotate ? 'Stop' : 'Start'} automatic orbit rotation`} aria-pressed={autoRotate}><kbd>A</kbd> Auto</button>
         </nav>
-        <p className="coordinates">{mode === 'fly' ? 'WASD · Q/E · SHIFT' : mode === 'orbit' ? `${autoRotate ? 'AUTO · ' : ''}DRAG · SCROLL/PINCH` : `SPACE · ${tourPaused ? 'RESUME' : 'PAUSE'} TOUR`}<br />A · AUTO ROTATE · R · NEW WORLD</p>
+        <p className="coordinates">{mode === 'walk' ? 'WASD · SHIFT · CLICK TO LOOK' : mode === 'fly' ? 'WASD · Q/E · SHIFT' : mode === 'orbit' ? `${autoRotate ? 'AUTO · ' : ''}DRAG · SCROLL/PINCH` : `SPACE · ${tourPaused ? 'RESUME' : 'PAUSE'} TOUR`}<br />A · AUTO ROTATE · R · NEW WORLD</p>
       </footer>
     </main>
   );

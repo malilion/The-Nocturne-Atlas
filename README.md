@@ -35,17 +35,18 @@ Captured from the deterministic `MAGIC-001` world with generator `1.8.0`, Medium
 ### Explore
 
 - `T` — cinematic tour
+- `G` — grounded walk; click the world, then use `WASD` and `Shift`
 - `F` — free fly; click the world, then use `WASD`, `Q`/`E`, and `Shift`
 - `O` — orbit; drag to rotate and scroll to zoom
 - `A` — start or stop automatic orbit rotation
 - `R` — generate a new seed
-- `Esc` — release the pointer in free-fly mode
+- `Esc` — release the pointer in Walk or Free Fly mode
 - `Space` — pause or resume the cinematic tour
 - `1`–`5` — jump to Castle, Village, Lake, Forest, or Tower
 - `6` / `7` — open the Courtyard Stair or Aerial fixed view
 - `N` — switch between day and night
 
-Orbit mode supports mouse drag and wheel zoom on desktop, plus one-finger drag and two-finger pinch zoom on touch screens. It focuses on the most recently presented landmark instead of jumping to a fixed world center. Automatic rotation pauses while dragging and resumes on release; manual zoom remains available throughout.
+Walk mode keeps the camera at eye height over procedural terrain and applies collision against world bounds, the lake, castle towers, hall and gatehouse, and every rotated village footprint. Blocked diagonal movement attempts an axis slide so the player can move naturally along walls. Orbit mode supports mouse drag and wheel zoom on desktop, plus one-finger drag and two-finger pinch zoom on touch screens. It focuses on the most recently presented landmark instead of jumping to a fixed world center. Automatic rotation pauses while dragging and resumes on release; manual zoom remains available throughout.
 
 `Enter realm` starts the experience, collapses the landing panel, and parks the camera on the castle. Use `Resume` or `Space` to begin the tour. The scene switcher provides direct buttons for the castle, village, lake, forest, tower, courtyard staircase, and aerial survey. Every transition stops at its destination until the tour is explicitly resumed.
 
@@ -71,13 +72,13 @@ Create a production build with `npm run build`. Run the deterministic regression
 - Seven fixed destinations were browser-checked and recaptured from generator `1.8.0` at 1280×720.
 - Village, Forest, Tower, and Moving Stair cameras satisfy presentation-clearance contracts across twenty regression seeds.
 - Day/night transition, automatic orbit, mouse drag, and wheel zoom were exercised in the local WebGL experience. Touch input shares the tested orbit constraints and adds one-finger drag plus two-finger pinch.
-- All 26 deterministic, lifecycle, shader, environment, camera, and presentation tests pass. Coverage includes seeded detail profiles, night fill ownership, exposure, fog density, daylight transition, shadow toggles, landmark-relative orbit focus, drag-paused automatic rotation, and idempotent cleanup.
+- All 31 deterministic, lifecycle, shader, environment, collision, camera, and presentation tests pass. Coverage includes grounded movement, world/lake/castle/village collision, seeded detail profiles, night fill ownership, exposure, fog density, daylight transition, shadow toggles, landmark-relative orbit focus, drag-paused automatic rotation, and idempotent cleanup.
 - Production build and lint complete without errors. The build currently reports a non-blocking warning for the Three.js client chunk exceeding 500 kB after minification.
 - The current generator `1.8.0` Medium-quality castle sample reports 172 draw calls, 63k triangles, and 64 geometries, within the Phase 1 draw-call budget. The village detail pass replaces per-building windows with shared instances to offset its new geometry. Final 1080p FPS qualification remains hardware-dependent.
 
 ### Implementation notes
 
-The experience uses direct Three.js scene, camera, renderer, geometry, shader, instancing, and GPU lifecycle management. Dedicated camera and environment systems own input listeners, tour/fly/orbit transitions, day/night lighting, sky, fog, stars, celestial objects, water highlights, exposure, bloom, and shadow state through explicit update and disposal lifecycles.
+The experience uses direct Three.js scene, camera, renderer, geometry, shader, instancing, and GPU lifecycle management. Dedicated camera, collision, and environment systems own input listeners, tour/walk/fly/orbit transitions, grounded movement, day/night lighting, sky, fog, stars, celestial objects, water highlights, exposure, bloom, and shadow state through explicit update and disposal lifecycles.
 
 Terrain, castle stone, slate roofs, tree trunks, and village timber use seed-aware world-space procedural materials. Animated arcane wisps run entirely in a GPU point shader. The lake, shoreline rocks, reeds, and island share one deterministic boundary; its shader provides analytic waves, depth-to-shore color, Fresnel response, celestial highlights, and shoreline foam.
 
@@ -91,7 +92,7 @@ No third-party models, textures, characters, names, or franchise assets are incl
 
 ### Scope
 
-This repository is a polished Phase 1 vertical slice. Collision, interiors, NPCs, quests, original audio, and world streaming are planned follow-up work rather than incomplete Phase 1 requirements.
+This repository contains the complete Phase 1 vertical slice plus the first Phase 2 feature: grounded collision navigation. Interiors, NPCs, quests, original audio, and world streaming remain planned follow-up work.
 
 ---
 
@@ -100,17 +101,18 @@ This repository is a polished Phase 1 vertical slice. Collision, interiors, NPCs
 ### 操作方式
 
 - `T` — 電影式自動導覽
+- `G` — 地面行走；點擊世界後使用 `WASD` 與 `Shift`
 - `F` — 自由飛行；點擊世界後使用 `WASD`、`Q`/`E` 與 `Shift`
 - `O` — 環繞視角；拖曳旋轉、滾輪縮放
 - `A` — 開啟或停止自動環繞旋轉
 - `R` — 產生新的隨機種子
-- `Esc` — 在自由飛行模式解除滑鼠鎖定
+- `Esc` — 在地面行走或自由飛行模式解除滑鼠鎖定
 - `Space` — 暫停或繼續電影式導覽
 - `1`–`5` — 直接切換至城堡、村莊、湖泊、森林或高塔
 - `6` / `7` — 切換至中庭階梯或空中勘察固定視角
 - `N` — 切換白天與夜晚
 
-環繞模式在桌面支援滑鼠拖曳與滾輪縮放，在觸控裝置支援單指拖曳與雙指縮放。進入環繞模式時會以最近瀏覽的地標為中心，不會跳回固定的世界中心。拖曳期間自動旋轉會暫停，放開後自然恢復，過程中仍可隨時縮放。
+地面行走模式會讓鏡頭保持在程序地形上的視線高度，並對世界邊界、湖泊、城堡塔樓、大廳、城門，以及每棟旋轉過的村屋套用碰撞。斜向移動受阻時會嘗試沿單一軸向滑動，讓貼牆行走更自然。環繞模式在桌面支援滑鼠拖曳與滾輪縮放，在觸控裝置支援單指拖曳與雙指縮放。進入環繞模式時會以最近瀏覽的地標為中心，不會跳回固定的世界中心。拖曳期間自動旋轉會暫停，放開後自然恢復，過程中仍可隨時縮放。
 
 按下 `Enter realm` 會進入世界、收合起始面板，並將鏡頭停在城堡。使用 `Resume` 或 `Space` 才會開始導覽。場景切換列提供城堡、村莊、湖泊、森林、高塔、中庭階梯與空中勘察按鍵；每次轉場抵達後都會停住，直到使用者主動恢復導覽。
 
@@ -136,13 +138,13 @@ npm run dev
 - 七個固定場景目的地皆已使用生成器 `1.8.0` 以 1280×720 實際檢查並重新截圖。
 - 村莊、森林、高塔與移動階梯鏡頭，在二十組回歸種子中皆符合取景淨空規則。
 - 日夜切換、自動環繞、滑鼠拖曳與滾輪縮放已在本機 WebGL 場景操作驗證。觸控操作沿用相同環繞限制，並加入單指拖曳與雙指縮放。
-- 26 項固定性、生命週期、Shader、環境、鏡頭與場景呈現測試全數通過。涵蓋種子化細節設定、夜間補光管理、曝光、霧密度、日夜轉換、陰影切換、地標中心環繞、拖曳暫停自轉與重複清理安全性。
+- 31 項固定性、生命週期、Shader、環境、碰撞、鏡頭與場景呈現測試全數通過。涵蓋貼地移動、世界／湖泊／城堡／村莊碰撞、種子化細節設定、夜間補光管理、曝光、霧密度、日夜轉換、陰影切換、地標中心環繞、拖曳暫停自轉與重複清理安全性。
 - 正式建置與 Lint 均無錯誤。目前僅有 Three.js 用戶端區塊壓縮後超過 500 kB 的非阻擋警告。
 - 目前生成器 `1.8.0` 的中等畫質城堡抽樣為 172 Draw Calls、63k 三角形與 64 個 Geometry，符合 Phase 1 的 Draw Call 預算。村莊細節以共用 Instancing 取代逐棟窗戶，抵銷新增幾何成本。最終 1080p FPS 仍需依實際硬體確認。
 
 ### 實作說明
 
-本體直接使用 Three.js 管理場景、鏡頭、Renderer、幾何、Shader、Instancing 與 GPU 資源生命週期。獨立的鏡頭與環境系統透過明確的更新及清理流程，管理輸入事件、導覽／自由飛行／環繞切換、日夜照明、天空、霧、星光、天體、水面高光、曝光、Bloom 與陰影狀態。
+本體直接使用 Three.js 管理場景、鏡頭、Renderer、幾何、Shader、Instancing 與 GPU 資源生命週期。獨立的鏡頭、碰撞與環境系統透過明確的更新及清理流程，管理輸入事件、導覽／地面行走／自由飛行／環繞切換、貼地移動、日夜照明、天空、霧、星光、天體、水面高光、曝光、Bloom 與陰影狀態。
 
 地形、城堡石材、石板屋頂、樹幹與村莊木材均使用與種子相關的世界座標程序材質。魔法光點完全在 GPU Point Shader 中運作。湖泊、水岸岩石、蘆葦與島嶼共用同一條固定邊界；水面 Shader 提供解析波浪、深淺水色、Fresnel 反射、天體高光與岸邊泡沫。
 
@@ -156,4 +158,4 @@ npm run dev
 
 ### 專案範圍
 
-目前版本是完成度完整的 Phase 1 垂直切片。碰撞、室內空間、NPC、任務、原創音效與世界串流屬於後續階段規劃，不是尚未完成的 Phase 1 需求。
+目前版本包含完成度完整的 Phase 1 垂直切片，以及第一項 Phase 2 功能：地面碰撞導航。室內空間、NPC、任務、原創音效與世界串流仍屬後續階段規劃。
