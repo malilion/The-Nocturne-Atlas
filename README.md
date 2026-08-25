@@ -8,9 +8,9 @@ An original, seed-driven 3D wizarding world built with Three.js and TypeScript.
 
 ## Scene Gallery / 場景圖庫
 
-Captured from the deterministic `MAGIC-001` world with generator `1.8.0`, Medium quality, and night mode. Every image is an actual scene-switch destination with the tour paused after arrival. The gallery includes the seeded castle gatehouse, buttresses and battlements, village chimneys and trim, and layered forest silhouettes introduced in this version.
+The outdoor gallery was captured from the deterministic `MAGIC-001` world with generator `1.8.0`, Medium quality, and night mode. Every image is an actual scene-switch destination with the tour paused after arrival. Generator `1.9.0` preserves these outdoor destinations and adds the Great Hall interior described below.
 
-以下畫面擷取自固定種子 `MAGIC-001`、生成器 `1.8.0`、中等畫質與夜間模式。每張圖片都是實際可切換的場景目的地，抵達後導覽會保持暫停。圖庫已呈現此版本新增的種子化城門建築、扶壁與垛口、村莊煙囪與飾條，以及分層森林輪廓。
+戶外圖庫擷取自固定種子 `MAGIC-001`、生成器 `1.8.0`、中等畫質與夜間模式。每張圖片都是實際可切換的場景目的地，抵達後導覽會保持暫停。生成器 `1.9.0` 保留這些戶外目的地，並新增下方說明的大廳室內場景。
 
 | 1 · Castle of Veyra / 維拉城堡 | 2 · Lumen Row / 流明街村莊 |
 | --- | --- |
@@ -44,11 +44,12 @@ Captured from the deterministic `MAGIC-001` world with generator `1.8.0`, Medium
 - `Space` — pause or resume the cinematic tour
 - `1`–`5` — jump to Castle, Village, Lake, Forest, or Tower
 - `6` / `7` — open the Courtyard Stair or Aerial fixed view
+- `8` — enter the seeded Great Hall interior
 - `N` — switch between day and night
 
 Walk mode keeps the camera at eye height over procedural terrain and applies collision against world bounds, the lake, castle towers, hall and gatehouse, and every rotated village footprint. Blocked diagonal movement attempts an axis slide so the player can move naturally along walls. Orbit mode supports mouse drag and wheel zoom on desktop, plus one-finger drag and two-finger pinch zoom on touch screens. It focuses on the most recently presented landmark instead of jumping to a fixed world center. Automatic rotation pauses while dragging and resumes on release; manual zoom remains available throughout.
 
-`Enter realm` starts the experience, collapses the landing panel, and parks the camera on the castle. Use `Resume` or `Space` to begin the tour. The scene switcher provides direct buttons for the castle, village, lake, forest, tower, courtyard staircase, and aerial survey. Every transition stops at its destination until the tour is explicitly resumed.
+`Enter realm` starts the experience, collapses the landing panel, and parks the camera on the castle. Use `Resume` or `Space` to begin the tour. The scene switcher provides direct buttons for the castle, village, lake, forest, tower, courtyard staircase, aerial survey, and Great Hall. Every transition stops at its destination until the tour is explicitly resumed.
 
 The same seed always recreates the same world. The HUD reports live frame rate and frame time, draw calls, triangles, GPU resource ownership, generation time, optional JavaScript heap data, and resources released by the latest rebuild.
 
@@ -72,9 +73,9 @@ Create a production build with `npm run build`. Run the deterministic regression
 - Seven fixed destinations were browser-checked and recaptured from generator `1.8.0` at 1280×720.
 - Village, Forest, Tower, and Moving Stair cameras satisfy presentation-clearance contracts across twenty regression seeds.
 - Day/night transition, automatic orbit, mouse drag, and wheel zoom were exercised in the local WebGL experience. Touch input shares the tested orbit constraints and adds one-finger drag plus two-finger pinch.
-- All 31 deterministic, lifecycle, shader, environment, collision, camera, and presentation tests pass. Coverage includes grounded movement, world/lake/castle/village collision, seeded detail profiles, night fill ownership, exposure, fog density, daylight transition, shadow toggles, landmark-relative orbit focus, drag-paused automatic rotation, and idempotent cleanup.
+- All 33 deterministic, lifecycle, shader, environment, collision, camera, interior, and presentation tests pass. Coverage includes deterministic Great Hall furnishing, grounded movement, world/lake/castle/village collision, seeded detail profiles, night fill ownership, exposure, fog density, daylight transition, shadow toggles, landmark-relative orbit focus, drag-paused automatic rotation, and idempotent cleanup.
 - Production build and lint complete without errors. The build currently reports a non-blocking warning for the Three.js client chunk exceeding 500 kB after minification.
-- The current generator `1.8.0` Medium-quality castle sample reports 172 draw calls, 63k triangles, and 64 geometries, within the Phase 1 draw-call budget. The village detail pass replaces per-building windows with shared instances to offset its new geometry. Final 1080p FPS qualification remains hardware-dependent.
+- The generator `1.8.0` Medium-quality castle baseline reports 172 draw calls, 63k triangles, and 64 geometries, within the Phase 1 draw-call budget. Generator `1.9.0` adds instanced interior furnishings; a fresh hardware sample is recommended. Final 1080p FPS qualification remains hardware-dependent.
 
 ### Implementation notes
 
@@ -84,6 +85,8 @@ Terrain, castle stone, slate roofs, tree trunks, and village timber use seed-awa
 
 Generator `1.8.0` adds a rendered gatehouse with an arched portal, instanced castle buttresses and battlements, seeded village chimneys, framed windows and hanging signs, plus leaning trunks and two-tier near-tree canopies. Detail profiles use isolated seed namespaces so silhouette changes do not cascade into unrelated systems. Village windows and trim are instanced in shared batches to keep added draw-call cost bounded.
 
+Generator `1.9.0` replaces the solid Great Hall mass with a hollow architectural shell while preserving its exterior roofline. Scene `8` presents a seeded interior with long tables, benches, dais, lectern, banners, glowing windows, rafters, and twenty-four floating candles. Repeated seeds reproduce the same candle layout.
+
 Regeneration uses an atomic swap: a new world is constructed and validated before it replaces the active root. Shared resources are deduplicated through an idempotent registry before disposal. Failed generation leaves the existing world visible, while WebGL context restoration triggers a validated rebuild. The `20× rebuild audit` tracks GPU geometry and browser heap samples when heap telemetry is available.
 
 The castle manifest is a connected topology of towers, hall, courtyard, gate, corridors, bridges, and a moving-stair route. Village placement validates road setback, zone membership, castle/lake exclusion, terrain slope, unique IDs, and footprint separation. The cinematic camera follows seed-aware Catmull–Rom curves through five terrain-safe landmarks, with every segment checked across twenty regression seeds.
@@ -92,7 +95,7 @@ No third-party models, textures, characters, names, or franchise assets are incl
 
 ### Scope
 
-This repository contains the complete Phase 1 vertical slice plus the first Phase 2 feature: grounded collision navigation. Interiors, NPCs, quests, original audio, and world streaming remain planned follow-up work.
+This repository contains the complete Phase 1 vertical slice plus grounded collision navigation and the first castle interior from Phase 2. Additional interiors, NPCs, quests, original audio, and world streaming remain planned follow-up work.
 
 ---
 
@@ -110,11 +113,12 @@ This repository contains the complete Phase 1 vertical slice plus the first Phas
 - `Space` — 暫停或繼續電影式導覽
 - `1`–`5` — 直接切換至城堡、村莊、湖泊、森林或高塔
 - `6` / `7` — 切換至中庭階梯或空中勘察固定視角
+- `8` — 進入種子化城堡大廳室內場景
 - `N` — 切換白天與夜晚
 
 地面行走模式會讓鏡頭保持在程序地形上的視線高度，並對世界邊界、湖泊、城堡塔樓、大廳、城門，以及每棟旋轉過的村屋套用碰撞。斜向移動受阻時會嘗試沿單一軸向滑動，讓貼牆行走更自然。環繞模式在桌面支援滑鼠拖曳與滾輪縮放，在觸控裝置支援單指拖曳與雙指縮放。進入環繞模式時會以最近瀏覽的地標為中心，不會跳回固定的世界中心。拖曳期間自動旋轉會暫停，放開後自然恢復，過程中仍可隨時縮放。
 
-按下 `Enter realm` 會進入世界、收合起始面板，並將鏡頭停在城堡。使用 `Resume` 或 `Space` 才會開始導覽。場景切換列提供城堡、村莊、湖泊、森林、高塔、中庭階梯與空中勘察按鍵；每次轉場抵達後都會停住，直到使用者主動恢復導覽。
+按下 `Enter realm` 會進入世界、收合起始面板，並將鏡頭停在城堡。使用 `Resume` 或 `Space` 才會開始導覽。場景切換列提供城堡、村莊、湖泊、森林、高塔、中庭階梯、空中勘察與城堡大廳按鍵；每次轉場抵達後都會停住，直到使用者主動恢復導覽。
 
 輸入相同種子一定會重建出相同世界。HUD 會顯示即時幀率、幀時間、Draw Calls、三角形數量、GPU 資源、生成時間、瀏覽器支援時的 JavaScript Heap，以及上一次重建所釋放的資源。
 
@@ -138,9 +142,9 @@ npm run dev
 - 七個固定場景目的地皆已使用生成器 `1.8.0` 以 1280×720 實際檢查並重新截圖。
 - 村莊、森林、高塔與移動階梯鏡頭，在二十組回歸種子中皆符合取景淨空規則。
 - 日夜切換、自動環繞、滑鼠拖曳與滾輪縮放已在本機 WebGL 場景操作驗證。觸控操作沿用相同環繞限制，並加入單指拖曳與雙指縮放。
-- 31 項固定性、生命週期、Shader、環境、碰撞、鏡頭與場景呈現測試全數通過。涵蓋貼地移動、世界／湖泊／城堡／村莊碰撞、種子化細節設定、夜間補光管理、曝光、霧密度、日夜轉換、陰影切換、地標中心環繞、拖曳暫停自轉與重複清理安全性。
+- 33 項固定性、生命週期、Shader、環境、碰撞、鏡頭、室內與場景呈現測試全數通過。涵蓋固定種子大廳陳設、貼地移動、世界／湖泊／城堡／村莊碰撞、種子化細節設定、夜間補光管理、曝光、霧密度、日夜轉換、陰影切換、地標中心環繞、拖曳暫停自轉與重複清理安全性。
 - 正式建置與 Lint 均無錯誤。目前僅有 Three.js 用戶端區塊壓縮後超過 500 kB 的非阻擋警告。
-- 目前生成器 `1.8.0` 的中等畫質城堡抽樣為 172 Draw Calls、63k 三角形與 64 個 Geometry，符合 Phase 1 的 Draw Call 預算。村莊細節以共用 Instancing 取代逐棟窗戶，抵銷新增幾何成本。最終 1080p FPS 仍需依實際硬體確認。
+- 生成器 `1.8.0` 的中等畫質城堡基準為 172 Draw Calls、63k 三角形與 64 個 Geometry，符合 Phase 1 的 Draw Call 預算。生成器 `1.9.0` 加入實例化室內陳設，建議重新進行硬體抽樣。最終 1080p FPS 仍需依實際硬體確認。
 
 ### 實作說明
 
@@ -150,6 +154,8 @@ npm run dev
 
 生成器 `1.8.0` 新增具有拱門入口的城門建築、實例化城堡扶壁與垛口、種子化村莊煙囪、窗框與懸掛招牌，以及傾斜樹幹和近景雙層樹冠。細節設定使用隔離的種子命名空間，輪廓變化不會連帶改變其他系統。村莊窗戶與飾條以共用 Instancing 批次繪製，使新增細節的 Draw Call 成本維持受控。
 
+生成器 `1.9.0` 將原本實心的城堡大廳改為中空建築外殼，同時保留外部屋頂輪廓。場景 `8` 會呈現具有長桌、長椅、講台、旗幟、發光窗戶、屋樑與二十四根漂浮蠟燭的種子化室內空間；相同種子會重現相同的燭光配置。
+
 世界重建採用原子交換：新世界完成建立與驗證後才取代目前場景。共用資源由可重複安全清理的 Registry 去重並釋放。生成失敗時舊世界仍可使用；WebGL Context 恢復後則會觸發已驗證的重建流程。`20× rebuild audit` 會記錄 GPU Geometry，以及瀏覽器提供 Heap Telemetry 時的記憶體樣本。
 
 城堡 Manifest 是由塔樓、大廳、中庭、城門、走廊、橋梁與移動階梯路線組成的連通拓撲。村莊配置會驗證道路退縮、區域範圍、城堡與湖泊排除、地形坡度、唯一 ID 與建築間距。電影式鏡頭使用與種子相關的 Catmull–Rom 曲線穿過五個地形安全地標，並以二十組回歸種子檢查每個曲線區段。
@@ -158,4 +164,4 @@ npm run dev
 
 ### 專案範圍
 
-目前版本包含完成度完整的 Phase 1 垂直切片，以及第一項 Phase 2 功能：地面碰撞導航。室內空間、NPC、任務、原創音效與世界串流仍屬後續階段規劃。
+目前版本包含完成度完整的 Phase 1 垂直切片，以及 Phase 2 的地面碰撞導航與第一個城堡室內場景。更多室內空間、NPC、任務、原創音效與世界串流仍屬後續階段規劃。

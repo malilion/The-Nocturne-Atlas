@@ -38,7 +38,7 @@ export interface VillageBuildingPlan {
 }
 
 export interface ValidationView {
-  id: 'castle-hero' | 'courtyard-stair' | 'village-approach' | 'forest-edge' | 'lake-shore' | 'aerial-orbit';
+  id: 'castle-hero' | 'courtyard-stair' | 'village-approach' | 'forest-edge' | 'lake-shore' | 'aerial-orbit' | 'great-hall';
   label: string;
   subtitle: string;
   position: [number, number, number];
@@ -54,7 +54,7 @@ export interface WorldValidationReport {
 export interface WorldManifest {
   seed: string;
   seedHash: number;
-  generatorVersion: '1.8.0';
+  generatorVersion: '1.9.0';
   manifestHash: string;
   quality: QualityTier;
   towerHeights: number[];
@@ -145,6 +145,7 @@ export function createWorldManifest(seedText: string, quality: QualityTier): Wor
     ],
   })) as WorldManifest['cameraLandmarks'];
   const validationCamera = seededStream(seed, 'camera/validation');
+  const castleBaseY = terrainHeight(-7, -4, seedHash) + 0.2;
   const landmarkById = Object.fromEntries(cameraLandmarks.map((landmark) => [landmark.id, landmark])) as Record<WorldManifest['cameraLandmarks'][number]['id'], WorldManifest['cameraLandmarks'][number]>;
   const validationViews: ValidationView[] = [
     { id: 'castle-hero', label: 'Castle Hero', subtitle: 'Silhouette and warm windows', position: [...landmarkById.castle.position], target: [...landmarkById.castle.target] },
@@ -153,11 +154,12 @@ export function createWorldManifest(seedText: string, quality: QualityTier): Wor
     { id: 'forest-edge', label: 'Forest Edge', subtitle: 'Near and far vegetation', position: [...landmarkById.forest.position], target: [...landmarkById.forest.target] },
     { id: 'lake-shore', label: 'Lake Shore', subtitle: 'Water and shared boundary', position: [...landmarkById.lake.position], target: [...landmarkById.lake.target] },
     { id: 'aerial-orbit', label: 'Aerial Survey', subtitle: 'World zoning overview', position: [2 + validationCamera() * 4, 68 + validationCamera() * 4, 64 + validationCamera() * 5], target: [-7, 1, -4] },
+    { id: 'great-hall', label: 'The Great Hall', subtitle: 'Seeded castle interior', position: [-8, castleBaseY + 3.2, 0], target: [-8, castleBaseY + 2.8, -8] },
   ].map((view) => ({
     ...view,
     position: [
       Number(view.position[0].toFixed(3)),
-      Number(Math.max(view.position[1], terrainHeight(view.position[0], view.position[2], seedHash) + 7).toFixed(3)),
+      Number(Math.max(view.position[1], terrainHeight(view.position[0], view.position[2], seedHash) + (view.id === 'great-hall' ? 1.7 : 7)).toFixed(3)),
       Number(view.position[2].toFixed(3)),
     ],
   })) as ValidationView[];
@@ -210,7 +212,7 @@ export function createWorldManifest(seedText: string, quality: QualityTier): Wor
   const base = {
     seed,
     seedHash,
-    generatorVersion: '1.8.0' as const,
+    generatorVersion: '1.9.0' as const,
     quality,
     towerHeights,
     castleGraph,
@@ -337,12 +339,13 @@ export function validateWorldManifest(manifest: WorldManifest): WorldValidationR
     const ground = terrainHeight(landmark.position[0], landmark.position[2], manifest.seedHash);
     if (landmark.position[1] < ground + 6.8) errors.push(`Camera landmark intersects terrain: ${landmark.id}`);
   }
-  const expectedValidationViews: ValidationView['id'][] = ['castle-hero', 'courtyard-stair', 'village-approach', 'forest-edge', 'lake-shore', 'aerial-orbit'];
+  const expectedValidationViews: ValidationView['id'][] = ['castle-hero', 'courtyard-stair', 'village-approach', 'forest-edge', 'lake-shore', 'aerial-orbit', 'great-hall'];
   if (manifest.validationViews.length !== expectedValidationViews.length || expectedValidationViews.some((id) => !manifest.validationViews.some((view) => view.id === id))) errors.push('Fixed visual validation views are incomplete.');
   for (const view of manifest.validationViews) {
     if (![...view.position, ...view.target].every(Number.isFinite)) errors.push(`Invalid visual validation view: ${view.id}`);
     const ground = terrainHeight(view.position[0], view.position[2], manifest.seedHash);
-    if (view.position[1] < ground + 6.8) errors.push(`Visual validation view intersects terrain: ${view.id}`);
+    const minimumClearance = view.id === 'great-hall' ? 1.6 : 6.8;
+    if (view.position[1] < ground + minimumClearance) errors.push(`Visual validation view intersects terrain: ${view.id}`);
   }
   if (manifest.cameraLandmarks.length >= 4) {
     for (let segment = 0; segment < manifest.cameraLandmarks.length; segment += 1) {
