@@ -15,6 +15,7 @@ import { EnvironmentSystem, type TimeOfDay } from './environment-system';
 import { createGreatHallArchitecture } from './great-hall';
 import { createCastleDetailProfile, createForestTreeDetailProfile, createVillageDetailProfile } from './procedural-details';
 import { createRoofMaterial, createStoneMaterial, createTerrainMaterial, createWoodMaterial } from './procedural-materials';
+import { RebuildCoordinator } from './rebuild-coordinator';
 import { ResourceRegistry } from './resource-registry';
 import { createWorldManifest, hashSeed, mulberry32, terrainHeight, validateWorldManifest, type QualityTier, type WorldManifest } from './world-core';
 
@@ -69,10 +70,12 @@ function disposeObject(root: THREE.Object3D) {
   return { geometries: report.byCategory.geometries ?? 0, materials: report.byCategory.materials ?? 0 };
 }
 
-function createWorld(seedText: string, quality: QualityTier) {
+function createWorld(seedText: string, quality: QualityTier, signal?: AbortSignal) {
+  signal?.throwIfAborted();
   const manifest = createWorldManifest(seedText, quality);
   const validation = validateWorldManifest(manifest);
   if (!validation.ok) throw new Error(`World manifest rejected: ${validation.errors.join(' ')}`);
+  signal?.throwIfAborted();
   const seed = manifest.seedHash;
   const random = mulberry32(hashSeed(`${manifest.seed}::world`));
   const root = new THREE.Group();
@@ -686,6 +689,7 @@ export default function Home() {
   const timeOfDayRef = useRef<TimeOfDay>('night');
   const sceneRequestRef = useRef<LandmarkId | null>(null);
   const fixedPoseRef = useRef<FixedView | null>(null);
+  const rebuildLockedRef = useRef(false);
   const [seed, setSeed] = useState(DEFAULT_SEED);
   const [activeSeed, setActiveSeed] = useState(DEFAULT_SEED);
   const [entered, setEntered] = useState(false);
@@ -793,7 +797,7 @@ export default function Home() {
     const cameraManager = new CameraManager(camera, renderer.domElement, world.manifest);
     const startedAt = performance.now();
     let frame = 0;
-    let rebuildRequested = false;
+    const rebuildCoordinator = new RebuildCoordinator<{ seed: string; quality: QualityTier; reason: 'user' | 'audit' | 'context' }>();
     let animationTime = 0;
     let soakRemaining = 0;
     let soakCompleted = 0;
@@ -805,7 +809,8 @@ export default function Home() {
     let previousElapsed = 0;
     let framesSinceSample = 0;
     let sampleStarted = 0;
-    const rebuild = () => { rebuildRequested = true; };
+    const queueRebuild = (reason: 'user' | 'audit' | 'context') => rebuildCoordinator.request({ seed: seedRef.current, quality: qualityRef.current, reason });
+    const rebuild = () => { queueRebuild('user'); };
     const runSoak = () => {
       if (soakRemaining > 0) return;
       soakRemaining = 20;
@@ -816,7 +821,7 @@ export default function Home() {
       soakBaselineHeapMb = readHeapMb();
       setSoakAudit({ running: true, completed: 0, total: 20, baselineGeometries: soakBaselineGeometries, finalGeometries: null, baselineHeapMb: soakBaselineHeapMb, finalHeapMb: null });
       setGenerationStatus('building');
-      rebuildRequested = true;
+      queueRebuild('audit');
     };
     window.addEventListener('wizard-rebuild', rebuild);
     window.addEventListener('wizard-soak', runSoak);
@@ -831,7 +836,7 @@ export default function Home() {
       contextAvailable = true;
       setGenerationError(null);
       setGenerationStatus('building');
-      rebuildRequested = true;
+      queueRebuild('context');
     };
     renderer.domElement.addEventListener('webglcontextlost', onContextLost);
     renderer.domElement.addEventListener('webglcontextrestored', onContextRestored);
@@ -843,58 +848,86 @@ export default function Home() {
       previousElapsed = elapsed;
       if (!contextAvailable) return;
       if (!ambientPausedRef.current) animationTime += delta;
-      if (rebuildRequested) {
-        rebuildRequested = false;
+      const rebuildTicket = rebuildCoordinator.takeLatest();
+      if (rebuildTicket) {
+        let nextWorld: ReturnType<typeof createWorld> | null = null;
         try {
           const generationStarted = performance.now();
-          const nextWorld = createWorld(seedRef.current, qualityRef.current);
+          nextWorld = createWorld(rebuildTicket.payload.seed, rebuildTicket.payload.quality, rebuildTicket.signal);
           lastGenerationMs = performance.now() - generationStarted;
-          const previousWorld = world;
-          scene.add(nextWorld.root);
-          world = nextWorld;
-          if (fixedPoseRef.current) {
-            const updatedFixedView = world.manifest.validationViews.find((view) => view.id === fixedPoseRef.current?.id) ?? null;
-            fixedPoseRef.current = updatedFixedView;
-            setFixedView(updatedFixedView);
-          }
-          cameraManager.setManifest(world.manifest);
-          scene.remove(previousWorld.root);
-          lastDisposal = disposeObject(previousWorld.root);
-          renderer.setPixelRatio(Math.min(window.devicePixelRatio, renderScale()));
-          renderer.setSize(mount.clientWidth, mount.clientHeight);
-          composer.setPixelRatio(renderer.getPixelRatio());
-          composer.setSize(mount.clientWidth, mount.clientHeight);
-          updateFxaaResolution();
-          setManifest(world.manifest);
-          setGenerationError(null);
-          if (soakRemaining > 0) {
-            soakRemaining -= 1;
-            soakCompleted += 1;
-            const running = soakRemaining > 0;
-            if (!running) {
-              soakFinalSampleUntil = elapsed + 3;
-              soakFinalHeapMb = null;
-            }
-            setSoakAudit({
-              running: true,
-              completed: soakCompleted,
-              total: 20,
-              baselineGeometries: soakBaselineGeometries,
-              finalGeometries: null,
-              baselineHeapMb: soakBaselineHeapMb,
-              finalHeapMb: null,
-            });
-            setGenerationStatus('building');
-            if (running) rebuildRequested = true;
+          rebuildTicket.signal.throwIfAborted();
+          if (!rebuildCoordinator.complete(rebuildTicket.id)) {
+            disposeObject(nextWorld.root);
+            nextWorld = null;
           } else {
-            setGenerationStatus('ready');
+            const previousWorld = world;
+            scene.add(nextWorld.root);
+            world = nextWorld;
+            seedRef.current = rebuildTicket.payload.seed;
+            qualityRef.current = rebuildTicket.payload.quality;
+            setActiveSeed(rebuildTicket.payload.seed);
+            setQuality(rebuildTicket.payload.quality);
+            if (fixedPoseRef.current) {
+              const updatedFixedView = world.manifest.validationViews.find((view) => view.id === fixedPoseRef.current?.id) ?? null;
+              fixedPoseRef.current = updatedFixedView;
+              setFixedView(updatedFixedView);
+            }
+            cameraManager.setManifest(world.manifest);
+            scene.remove(previousWorld.root);
+            lastDisposal = disposeObject(previousWorld.root);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, renderScale()));
+            renderer.setSize(mount.clientWidth, mount.clientHeight);
+            composer.setPixelRatio(renderer.getPixelRatio());
+            composer.setSize(mount.clientWidth, mount.clientHeight);
+            updateFxaaResolution();
+            setManifest(world.manifest);
+            setGenerationError(null);
+            if (soakRemaining > 0) {
+              soakRemaining -= 1;
+              soakCompleted += 1;
+              const running = soakRemaining > 0;
+              if (!running) {
+                soakFinalSampleUntil = elapsed + 3;
+                soakFinalHeapMb = null;
+              }
+              setSoakAudit({
+                running: true,
+                completed: soakCompleted,
+                total: 20,
+                baselineGeometries: soakBaselineGeometries,
+                finalGeometries: null,
+                baselineHeapMb: soakBaselineHeapMb,
+                finalHeapMb: null,
+              });
+              setGenerationStatus('building');
+              if (running) queueRebuild('audit');
+            } else {
+              rebuildLockedRef.current = false;
+              setGenerationStatus('ready');
+            }
           }
         } catch (error) {
+          if (nextWorld) disposeObject(nextWorld.root);
+          rebuildCoordinator.complete(rebuildTicket.id);
+          const canceled = error instanceof DOMException && error.name === 'AbortError';
+          if (canceled && rebuildCoordinator.hasPending) {
+            setGenerationStatus('building');
+            return;
+          }
           soakRemaining = 0;
           soakFinalSampleUntil = 0;
           setSoakAudit((audit) => ({ ...audit, running: false, finalGeometries: renderer.info.memory.geometries, finalHeapMb: readHeapMb() }));
-          setGenerationError(error instanceof Error ? error.message : 'World generation failed.');
-          setGenerationStatus('error');
+          rebuildLockedRef.current = false;
+          if (canceled) {
+            setGenerationStatus('ready');
+          } else {
+            seedRef.current = world.manifest.seed;
+            qualityRef.current = world.manifest.quality;
+            setActiveSeed(world.manifest.seed);
+            setQuality(world.manifest.quality);
+            setGenerationError(error instanceof Error ? error.message : 'World generation failed.');
+            setGenerationStatus('error');
+          }
         }
       }
       const environmentFrame = environment.update(delta, {
@@ -954,6 +987,7 @@ export default function Home() {
             baselineHeapMb: soakBaselineHeapMb,
             finalHeapMb: soakFinalHeapMb,
           });
+          rebuildLockedRef.current = false;
           setGenerationStatus('ready');
         }
       }
@@ -998,6 +1032,7 @@ export default function Home() {
       window.removeEventListener('resize', resize);
       window.removeEventListener('wizard-rebuild', rebuild);
       window.removeEventListener('wizard-soak', runSoak);
+      rebuildCoordinator.dispose();
       renderer.domElement.removeEventListener('webglcontextlost', onContextLost);
       renderer.domElement.removeEventListener('webglcontextrestored', onContextRestored);
       disposeObject(world.root);
@@ -1011,6 +1046,8 @@ export default function Home() {
   }, []);
 
   const regenerate = useCallback(() => {
+    if (rebuildLockedRef.current) return;
+    rebuildLockedRef.current = true;
     const normalized = seed.trim() || DEFAULT_SEED;
     setSeed(normalized);
     setActiveSeed(normalized);
@@ -1033,6 +1070,8 @@ export default function Home() {
   }, [manifest]);
 
   const randomSeed = useCallback(() => {
+    if (rebuildLockedRef.current) return;
+    rebuildLockedRef.current = true;
     const values = new Uint32Array(1);
     crypto.getRandomValues(values);
     const next = `MAGIC-${String(values[0] % 100000).padStart(5, '0')}`;
@@ -1045,7 +1084,8 @@ export default function Home() {
   }, []);
 
   const selectQuality = useCallback((nextQuality: QualityTier) => {
-    if (nextQuality === qualityRef.current) return;
+    if (rebuildLockedRef.current || nextQuality === qualityRef.current) return;
+    rebuildLockedRef.current = true;
     qualityRef.current = nextQuality;
     setQuality(nextQuality);
     setGenerationError(null);
@@ -1054,7 +1094,8 @@ export default function Home() {
   }, []);
 
   const runSoakAudit = useCallback(() => {
-    if (soakAudit.running) return;
+    if (rebuildLockedRef.current || soakAudit.running) return;
+    rebuildLockedRef.current = true;
     setHudOpen(true);
     window.dispatchEvent(new Event('wizard-soak'));
   }, [soakAudit.running]);
@@ -1156,6 +1197,7 @@ export default function Home() {
 
   const auditGeometryStable = soakAudit.finalGeometries !== null && Math.abs(soakAudit.baselineGeometries - soakAudit.finalGeometries) <= 1;
   const auditHeapStable = soakAudit.finalHeapMb === null || soakAudit.baselineHeapMb === null || soakAudit.finalHeapMb <= soakAudit.baselineHeapMb + Math.max(8, soakAudit.baselineHeapMb * 0.15);
+  const rebuildLocked = generationStatus === 'building' || soakAudit.running;
 
   return (
     <main className={`experience-shell ${entered ? 'is-entered' : ''} ${timeOfDay === 'day' ? 'is-day' : 'is-night'}`}>
@@ -1182,10 +1224,10 @@ export default function Home() {
       <section className={`seed-card ${entered && !seedPanelOpen ? 'is-collapsed' : ''}`} aria-label="World seed controls" aria-hidden={entered && !seedPanelOpen}>
         <label htmlFor="seed">World seed</label>
         <div className="seed-row">
-          <input id="seed" value={seed} onChange={(event) => setSeed(event.target.value.toUpperCase())} onKeyDown={(event) => event.key === 'Enter' && (entered ? regenerate() : enterRealm())} spellCheck={false} />
-          <button type="button" onClick={entered ? regenerate : enterRealm} aria-label={entered ? 'Rebuild world from seed' : 'Enter the generated world'}>{entered ? 'Rebuild realm' : 'Enter realm'} <span>↗</span></button>
+          <input id="seed" value={seed} onChange={(event) => setSeed(event.target.value.toUpperCase())} onKeyDown={(event) => event.key === 'Enter' && (entered ? regenerate() : enterRealm())} spellCheck={false} disabled={rebuildLocked} />
+          <button type="button" onClick={entered ? regenerate : enterRealm} aria-label={entered ? 'Rebuild world from seed' : 'Enter the generated world'} disabled={rebuildLocked}>{entered ? 'Rebuild realm' : 'Enter realm'} <span>↗</span></button>
         </div>
-        <div className="seed-meta"><span>Active · {activeSeed}</span><span><button onClick={randomSeed}>Randomize</button><i>·</i><button onClick={copySeed}>{copied ? 'Copied' : 'Copy seed'}</button></span></div>
+        <div className="seed-meta"><span>Active · {activeSeed}</span><span><button onClick={randomSeed} disabled={rebuildLocked}>Randomize</button><i>·</i><button onClick={copySeed}>{copied ? 'Copied' : 'Copy seed'}</button></span></div>
         {generationError && <p className="generation-error" role="alert">The previous world remains active. {generationError}</p>}
       </section>
       <aside className={`performance-hud ${hudOpen ? 'is-open' : ''}`} aria-hidden={!hudOpen}>
@@ -1193,7 +1235,7 @@ export default function Home() {
         <dl><div><dt>Frame rate</dt><dd>{stats.fps} <small>FPS · {stats.frameMs}MS</small></dd></div><div><dt>Draw calls</dt><dd>{stats.calls}</dd></div><div><dt>Triangles</dt><dd>{Math.round(stats.triangles / 1000)}k</dd></div><div><dt>Points / lines</dt><dd>{stats.points}P · {stats.lines}L</dd></div><div><dt>GPU resources</dt><dd>{stats.geometries}G · {stats.textures}T</dd></div><div><dt>JS heap</dt><dd>{stats.heapMb === null ? 'N/A' : `${stats.heapMb} MB`}</dd></div><div><dt>Generation</dt><dd>{stats.generationMs} <small>MS</small></dd></div><div><dt>Last disposal</dt><dd>{stats.disposedGeometries}G · {stats.disposedMaterials}M</dd></div><div><dt>Castle graph</dt><dd>{manifest.castleGraph.nodes.length}N · {manifest.castleGraph.edges.length}E</dd></div><div><dt>Manifest</dt><dd>{manifest.manifestHash}</dd></div></dl>
         <section className="quality-controls">
           <label>Quality tier</label>
-          <div>{(['low', 'medium', 'high'] as QualityTier[]).map((tier) => <button key={tier} className={quality === tier ? 'active' : ''} onClick={() => selectQuality(tier)}>{tier}</button>)}</div>
+          <div>{(['low', 'medium', 'high'] as QualityTier[]).map((tier) => <button key={tier} className={quality === tier ? 'active' : ''} onClick={() => selectQuality(tier)} disabled={rebuildLocked}>{tier}</button>)}</div>
         </section>
         <section className="effect-toggles">
           <label><span>Atmospheric fog</span><input type="checkbox" checked={fogEnabled} onChange={(event) => setFogEnabled(event.target.checked)} /></label>

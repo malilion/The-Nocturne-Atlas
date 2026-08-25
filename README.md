@@ -71,7 +71,7 @@ Walk mode keeps the camera at eye height over procedural terrain and applies col
 
 `Enter realm` starts the experience, collapses the landing panel, and parks the camera on the castle. Use `Resume` or `Space` to begin the tour. The scene switcher provides direct buttons for the castle, village, lake, forest, tower, courtyard staircase, aerial survey, and Great Hall. Every transition stops at its destination until the tour is explicitly resumed.
 
-The same seed always recreates the same world. The HUD reports live frame rate and frame time, draw calls, triangles, GPU resource ownership, generation time, optional JavaScript heap data, and resources released by the latest rebuild.
+The same seed always recreates the same world. The HUD reports live frame rate and frame time, draw calls, triangles, GPU resource ownership, generation time, optional JavaScript heap data, and resources released by the latest rebuild. Seed, Randomize, and quality controls lock while a build or rebuild audit is active, preventing overlapping UI mutations.
 
 ### Visual and environment controls
 
@@ -93,7 +93,7 @@ Create a production build with `npm run build`. Run the deterministic regression
 - All eight fixed destinations were browser-checked in both night and daylight modes and recaptured from generator `1.9.0` at 1280×720, producing sixteen gallery images.
 - Village, Forest, Tower, and Moving Stair cameras satisfy presentation-clearance contracts across twenty regression seeds.
 - Day/night transition, automatic orbit, mouse drag, and wheel zoom were exercised in the local WebGL experience. Touch input shares the tested orbit constraints and adds one-finger drag plus two-finger pinch.
-- All 33 deterministic, lifecycle, shader, environment, collision, camera, interior, and presentation tests pass. Coverage includes deterministic Great Hall furnishing, grounded movement, world/lake/castle/village collision, seeded detail profiles, night fill ownership, exposure, fog density, daylight transition, shadow toggles, landmark-relative orbit focus, drag-paused automatic rotation, and idempotent cleanup.
+- All 37 deterministic, lifecycle, shader, environment, collision, camera, interior, rebuild-coordination, and presentation tests pass. Coverage includes latest-request-wins coalescing and cancellation, deterministic Great Hall furnishing, grounded movement, world/lake/castle/village collision, seeded detail profiles, night fill ownership, exposure, fog density, daylight transition, shadow toggles, landmark-relative orbit focus, drag-paused automatic rotation, and idempotent cleanup.
 - Production build and lint complete without errors. The build currently reports a non-blocking warning for the Three.js client chunk exceeding 500 kB after minification.
 - The generator `1.9.0` Medium-quality castle view reports 60 FPS, 189 draw calls, 66k triangles, 66 geometries, and 16 textures in the local Chromium/WebGL2 1920×1080 validation run. The Great Hall view reports 60 FPS, 129 draw calls, and 59k triangles. Cross-device FPS remains hardware-dependent.
 - The settled `20× rebuild audit` completed cleanly at 1920×1080: geometries remained `66→66`, while the available browser heap sample settled from `38.5→39.2 MB` after a three-second post-rebuild observation window.
@@ -108,7 +108,7 @@ Generator `1.8.0` adds a rendered gatehouse with an arched portal, instanced cas
 
 Generator `1.9.0` replaces the solid Great Hall mass with a hollow architectural shell while preserving its exterior roofline. Scene `8` presents a seeded interior with long tables, benches, dais, lectern, banners, glowing windows, rafters, twenty-four floating candles, and a bounded warm candle-light rig for readable night interiors. Repeated seeds reproduce the same candle layout. Fourteen tower windows now share one instanced batch, preserving the façade while bringing the complete 1080p castle view below the Phase 1 draw-call ceiling.
 
-Regeneration uses an atomic swap: a new world is constructed and validated before it replaces the active root. Shared resources are deduplicated through an idempotent registry before disposal. Failed generation leaves the existing world visible, while WebGL context restoration triggers a validated rebuild. The `20× rebuild audit` tracks GPU geometry and browser heap samples when heap telemetry is available.
+Regeneration uses an atomic, latest-request-wins pipeline: requests queued before the next render frame are coalesced, superseded tickets are canceled through `AbortController`, and cancellation is checked at safe generation boundaries. A new world is constructed and validated before it replaces the active root. Shared resources are deduplicated through an idempotent registry before disposal. Failed generation leaves the existing world visible, while WebGL context restoration triggers a validated rebuild. The `20× rebuild audit` tracks GPU geometry and browser heap samples when heap telemetry is available. The latest coordinator validation completed cleanly at `65→65` geometries with the available heap sample settling from `36.9→34.7 MB`.
 
 The castle manifest is a connected topology of towers, hall, courtyard, gate, corridors, bridges, and a moving-stair route. Village placement validates road setback, zone membership, castle/lake exclusion, terrain slope, unique IDs, and footprint separation. The cinematic camera follows seed-aware Catmull–Rom curves through five terrain-safe landmarks, with every segment checked across twenty regression seeds.
 
@@ -141,7 +141,7 @@ This repository contains the complete Phase 1 vertical slice plus grounded colli
 
 按下 `Enter realm` 會進入世界、收合起始面板，並將鏡頭停在城堡。使用 `Resume` 或 `Space` 才會開始導覽。場景切換列提供城堡、村莊、湖泊、森林、高塔、中庭階梯、空中勘察與城堡大廳按鍵；每次轉場抵達後都會停住，直到使用者主動恢復導覽。
 
-輸入相同種子一定會重建出相同世界。HUD 會顯示即時幀率、幀時間、Draw Calls、三角形數量、GPU 資源、生成時間、瀏覽器支援時的 JavaScript Heap，以及上一次重建所釋放的資源。
+輸入相同種子一定會重建出相同世界。HUD 會顯示即時幀率、幀時間、Draw Calls、三角形數量、GPU 資源、生成時間、瀏覽器支援時的 JavaScript Heap，以及上一次重建所釋放的資源。世界建立或重建稽核進行時，Seed、Randomize 與畫質控制會暫時鎖定，避免 UI 操作重疊修改狀態。
 
 ### 畫面與環境控制
 
@@ -163,7 +163,7 @@ npm run dev
 - 八個固定場景目的地皆已使用生成器 `1.9.0`，分別在夜間與白天模式以 1280×720 實際檢查並重新截圖，共產生十六張圖庫圖片。
 - 村莊、森林、高塔與移動階梯鏡頭，在二十組回歸種子中皆符合取景淨空規則。
 - 日夜切換、自動環繞、滑鼠拖曳與滾輪縮放已在本機 WebGL 場景操作驗證。觸控操作沿用相同環繞限制，並加入單指拖曳與雙指縮放。
-- 33 項固定性、生命週期、Shader、環境、碰撞、鏡頭、室內與場景呈現測試全數通過。涵蓋固定種子大廳陳設、貼地移動、世界／湖泊／城堡／村莊碰撞、種子化細節設定、夜間補光管理、曝光、霧密度、日夜轉換、陰影切換、地標中心環繞、拖曳暫停自轉與重複清理安全性。
+- 37 項固定性、生命週期、Shader、環境、碰撞、鏡頭、室內、重建協調與場景呈現測試全數通過。涵蓋最新請求優先的合併與取消、固定種子大廳陳設、貼地移動、世界／湖泊／城堡／村莊碰撞、種子化細節設定、夜間補光管理、曝光、霧密度、日夜轉換、陰影切換、地標中心環繞、拖曳暫停自轉與重複清理安全性。
 - 正式建置與 Lint 均無錯誤。目前僅有 Three.js 用戶端區塊壓縮後超過 500 kB 的非阻擋警告。
 - 生成器 `1.9.0` 的中等畫質城堡視角，在本機 Chromium／WebGL2、1920×1080 驗證中為 60 FPS、189 Draw Calls、66k 三角形、66 個 Geometry 與 16 個 Texture；城堡大廳視角則為 60 FPS、129 Draw Calls 與 59k 三角形。不同裝置的 FPS 仍取決於實際硬體。
 - 1920×1080 的 `20× rebuild audit` 已通過穩定驗證：Geometry 維持 `66→66`，瀏覽器可提供的 Heap 樣本在重建後三秒觀察窗中由 `38.5→39.2 MB`。
@@ -178,7 +178,7 @@ npm run dev
 
 生成器 `1.9.0` 將原本實心的城堡大廳改為中空建築外殼，同時保留外部屋頂輪廓。場景 `8` 會呈現具有長桌、長椅、講台、旗幟、發光窗戶、屋樑、二十四根漂浮蠟燭，以及範圍受限的暖色燭光補光；相同種子會重現相同的蠟燭配置。十四扇塔樓窗戶現在共用單一 InstancedMesh 批次，在維持立面外觀的同時，讓完整 1080p 城堡視角低於 Phase 1 的 Draw Call 上限。
 
-世界重建採用原子交換：新世界完成建立與驗證後才取代目前場景。共用資源由可重複安全清理的 Registry 去重並釋放。生成失敗時舊世界仍可使用；WebGL Context 恢復後則會觸發已驗證的重建流程。`20× rebuild audit` 會記錄 GPU Geometry，以及瀏覽器提供 Heap Telemetry 時的記憶體樣本。
+世界重建採用原子化、最新請求優先的流程：下一個 Render Frame 前收到的請求會合併，已被取代的 Ticket 透過 `AbortController` 取消，並在安全的生成邊界檢查取消狀態。新世界完成建立與驗證後才取代目前場景；共用資源由可重複安全清理的 Registry 去重並釋放。生成失敗時舊世界仍可使用；WebGL Context 恢復後則會觸發已驗證的重建流程。`20× rebuild audit` 會記錄 GPU Geometry，以及瀏覽器提供 Heap Telemetry 時的記憶體樣本。最新一次協調器驗證維持 `65→65` 個 Geometry，Heap 樣本由 `36.9→34.7 MB`。
 
 城堡 Manifest 是由塔樓、大廳、中庭、城門、走廊、橋梁與移動階梯路線組成的連通拓撲。村莊配置會驗證道路退縮、區域範圍、城堡與湖泊排除、地形坡度、唯一 ID 與建築間距。電影式鏡頭使用與種子相關的 Catmull–Rom 曲線穿過五個地形安全地標，並以二十組回歸種子檢查每個曲線區段。
 
