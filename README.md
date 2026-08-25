@@ -12,6 +12,8 @@
 
 An original, seed-driven 3D wizarding world built with Three.js and TypeScript.
 
+**[Live demo](https://malilion.github.io/The-Nocturne-Atlas/)**
+
 ## Scene Gallery
 
 The paired night and daylight galleries were captured from the deterministic `MAGIC-001` world with generator `2.9.0` at Medium quality. All twenty images are actual scene-switch destinations with the tour paused after arrival, including the three seeded interiors and the resident world cast.
