@@ -1,7 +1,9 @@
 import type { TimeOfDay } from './environment-system.ts';
 import type { StationQuestStep } from './station-quest.ts';
 
-const TRACK_URL = '/audio/beyond-the-mist.mp3';
+// Relative (no leading slash) so it resolves correctly whether the page is
+// served from the site root or a GitHub Pages project subpath.
+const TRACK_URL = 'audio/beyond-the-mist.mp3';
 
 let cachedTrackBuffer: AudioBuffer | null = null;
 let cachedTrackPromise: Promise<AudioBuffer> | null = null;
