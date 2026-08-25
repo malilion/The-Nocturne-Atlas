@@ -7,16 +7,13 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { SSAOPass } from 'three/addons/postprocessing/SSAOPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { CameraManager, type CameraMode, type FixedView, type LandmarkId } from './camera-manager';
 import { EnvironmentSystem, type TimeOfDay } from './environment-system';
 import { createRoofMaterial, createStoneMaterial, createTerrainMaterial, createWoodMaterial } from './procedural-materials';
 import { ResourceRegistry } from './resource-registry';
 import { createWorldManifest, hashSeed, mulberry32, terrainHeight, validateWorldManifest, type QualityTier, type WorldManifest } from './world-core';
 
 const DEFAULT_SEED = 'MAGIC-001';
-type CameraMode = 'tour' | 'fly' | 'orbit';
-type LandmarkId = WorldManifest['cameraLandmarks'][number]['id'];
-type FixedView = WorldManifest['validationViews'][number];
-
 const SCENE_LABELS: Record<LandmarkId, string> = {
   castle: 'Castle',
   village: 'Village',
@@ -607,25 +604,7 @@ export default function Home() {
     let lastGenerationMs = performance.now() - initialGenerationStarted;
     let lastDisposal = { geometries: 0, materials: 0 };
     scene.add(world.root);
-    const createTourCurves = (worldManifest: WorldManifest) => ({
-      positions: new THREE.CatmullRomCurve3(worldManifest.cameraLandmarks.map((landmark) => new THREE.Vector3(...landmark.position)), true, 'catmullrom', 0.26),
-      targets: new THREE.CatmullRomCurve3(worldManifest.cameraLandmarks.map((landmark) => new THREE.Vector3(...landmark.target)), true, 'catmullrom', 0.3),
-    });
-    let tourCurves = createTourCurves(world.manifest);
-    let tourTime = 0;
-    let lastTourIndex = -1;
-    let tourHandoffStarted = -10;
-    const tourHandoffPosition = new THREE.Vector3();
-    const tourHandoffTarget = new THREE.Vector3();
-    const desiredTourPosition = new THREE.Vector3();
-    const desiredTourTarget = new THREE.Vector3();
-    const blendedTourTarget = new THREE.Vector3();
-    const fixedViewFromPosition = new THREE.Vector3();
-    const fixedViewFromTarget = new THREE.Vector3();
-    const fixedViewPosition = new THREE.Vector3();
-    const fixedViewTarget = new THREE.Vector3();
-    let fixedViewStarted = -10;
-    let lastFixedViewId: FixedView['id'] | null = null;
+    const cameraManager = new CameraManager(camera, renderer.domElement, world.manifest);
     const startedAt = performance.now();
     let frame = 0;
     let rebuildRequested = false;
@@ -639,19 +618,6 @@ export default function Home() {
     let previousElapsed = 0;
     let framesSinceSample = 0;
     let sampleStarted = 0;
-    let lastMode: CameraMode = 'tour';
-    let flyYaw = 0;
-    let flyPitch = 0;
-    let orbitYaw = -0.5;
-    let orbitPitch = 0.35;
-    let orbitRadius = 68;
-    let orbitDragging = false;
-    const velocity = new THREE.Vector3();
-    const movement = new THREE.Vector3();
-    const forward = new THREE.Vector3();
-    const right = new THREE.Vector3();
-    const orbitTarget = new THREE.Vector3(-7, 10, -4);
-    const keys = new Set<string>();
     const rebuild = () => { rebuildRequested = true; };
     const runSoak = () => {
       if (soakRemaining > 0) return;
@@ -666,25 +632,6 @@ export default function Home() {
     window.addEventListener('wizard-rebuild', rebuild);
     window.addEventListener('wizard-soak', runSoak);
 
-    const onKeyDown = (event: KeyboardEvent) => keys.add(event.key.toLowerCase());
-    const onKeyUp = (event: KeyboardEvent) => keys.delete(event.key.toLowerCase());
-    const onPointerDown = () => {
-      if (modeRef.current === 'fly') renderer.domElement.requestPointerLock();
-      if (modeRef.current === 'orbit') orbitDragging = true;
-    };
-    const onPointerUp = () => { orbitDragging = false; };
-    const onMouseMove = (event: MouseEvent) => {
-      if (modeRef.current === 'fly' && document.pointerLockElement === renderer.domElement) {
-        flyYaw -= event.movementX * 0.0022;
-        flyPitch = THREE.MathUtils.clamp(flyPitch - event.movementY * 0.0022, -1.35, 1.35);
-      } else if (modeRef.current === 'orbit' && orbitDragging) {
-        orbitYaw -= event.movementX * 0.004;
-        orbitPitch = THREE.MathUtils.clamp(orbitPitch + event.movementY * 0.004, 0.08, 1.35);
-      }
-    };
-    const onWheel = (event: WheelEvent) => {
-      if (modeRef.current === 'orbit') orbitRadius = THREE.MathUtils.clamp(orbitRadius + event.deltaY * 0.035, 27, 115);
-    };
     const onContextLost = (event: Event) => {
       event.preventDefault();
       contextAvailable = false;
@@ -697,12 +644,6 @@ export default function Home() {
       setGenerationStatus('building');
       rebuildRequested = true;
     };
-    window.addEventListener('keydown', onKeyDown);
-    window.addEventListener('keyup', onKeyUp);
-    window.addEventListener('mouseup', onPointerUp);
-    document.addEventListener('mousemove', onMouseMove);
-    renderer.domElement.addEventListener('mousedown', onPointerDown);
-    renderer.domElement.addEventListener('wheel', onWheel, { passive: true });
     renderer.domElement.addEventListener('webglcontextlost', onContextLost);
     renderer.domElement.addEventListener('webglcontextrestored', onContextRestored);
 
@@ -726,11 +667,8 @@ export default function Home() {
             const updatedFixedView = world.manifest.validationViews.find((view) => view.id === fixedPoseRef.current?.id) ?? null;
             fixedPoseRef.current = updatedFixedView;
             setFixedView(updatedFixedView);
-            lastFixedViewId = null;
           }
-          tourCurves = createTourCurves(world.manifest);
-          tourTime = 0;
-          lastTourIndex = -1;
+          cameraManager.setManifest(world.manifest);
           scene.remove(previousWorld.root);
           lastDisposal = disposeObject(previousWorld.root);
           renderer.setPixelRatio(Math.min(window.devicePixelRatio, renderScale()));
@@ -788,99 +726,18 @@ export default function Home() {
       world.candleRoot.position.y = Math.sin(animationTime * 0.8) * 0.24;
 
       const requestedScene = sceneRequestRef.current;
-      if (requestedScene) {
-        const sceneIndex = world.manifest.cameraLandmarks.findIndex((landmark) => landmark.id === requestedScene);
-        if (sceneIndex >= 0) {
-          tourHandoffPosition.copy(camera.position);
-          camera.getWorldDirection(forward);
-          tourHandoffTarget.copy(camera.position).addScaledVector(forward, 20);
-          tourHandoffStarted = elapsed;
-          tourTime = (sceneIndex / world.manifest.cameraLandmarks.length) * 52;
-          lastTourIndex = sceneIndex;
-          setTourLocation(world.manifest.cameraLandmarks[sceneIndex]);
-        }
-        sceneRequestRef.current = null;
-      }
-
-      const currentMode = modeRef.current;
-      if (currentMode !== lastMode) {
-        const euler = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ');
-        flyYaw = euler.y;
-        flyPitch = euler.x;
-        const offset = camera.position.clone().sub(orbitTarget);
-        orbitRadius = THREE.MathUtils.clamp(offset.length(), 27, 115);
-        orbitYaw = Math.atan2(offset.z, offset.x);
-        orbitPitch = Math.asin(THREE.MathUtils.clamp(offset.y / orbitRadius, -1, 1));
-        if (currentMode === 'tour') {
-          tourHandoffPosition.copy(camera.position);
-          camera.getWorldDirection(forward);
-          tourHandoffTarget.copy(camera.position).addScaledVector(forward, 20);
-          tourHandoffStarted = elapsed;
-        }
-        velocity.set(0, 0, 0);
-        lastMode = currentMode;
-      }
-
-      if (currentMode === 'tour') {
-        if (!tourPausedRef.current) tourTime += delta * (reducedMotionRef.current ? 0.38 : 1);
-        const tourProgress = (tourTime % 52) / 52;
-        tourCurves.positions.getPointAt(tourProgress, desiredTourPosition);
-        tourCurves.targets.getPointAt(tourProgress, desiredTourTarget);
-        const handoff = THREE.MathUtils.smoothstep(elapsed - tourHandoffStarted, 0, reducedMotionRef.current ? 2.4 : 1.25);
-        camera.position.lerpVectors(tourHandoffPosition, desiredTourPosition, handoff);
-        blendedTourTarget.lerpVectors(tourHandoffTarget, desiredTourTarget, handoff);
-        camera.lookAt(blendedTourTarget);
-        const tourIndex = Math.floor(tourProgress * world.manifest.cameraLandmarks.length) % world.manifest.cameraLandmarks.length;
-        if (tourIndex !== lastTourIndex) {
-          lastTourIndex = tourIndex;
-          setTourLocation(world.manifest.cameraLandmarks[tourIndex]);
-        }
-      } else if (currentMode === 'orbit') {
-        camera.position.set(
-          orbitTarget.x + Math.cos(orbitYaw) * Math.cos(orbitPitch) * orbitRadius,
-          orbitTarget.y + Math.sin(orbitPitch) * orbitRadius,
-          orbitTarget.z + Math.sin(orbitYaw) * Math.cos(orbitPitch) * orbitRadius,
-        );
-        camera.lookAt(orbitTarget);
-      } else {
-        camera.rotation.order = 'YXZ';
-        camera.rotation.y = flyYaw;
-        camera.rotation.x = flyPitch;
-        camera.getWorldDirection(forward);
-        right.crossVectors(forward, camera.up).normalize();
-        movement.set(0, 0, 0);
-        if (keys.has('w')) movement.add(forward);
-        if (keys.has('s')) movement.sub(forward);
-        if (keys.has('d')) movement.add(right);
-        if (keys.has('a')) movement.sub(right);
-        if (keys.has('e')) movement.y += 1;
-        if (keys.has('q')) movement.y -= 1;
-        if (movement.lengthSq() > 0) {
-          movement.normalize().multiplyScalar(keys.has('shift') ? 34 : 14);
-          velocity.addScaledVector(movement, delta * 3.2);
-        }
-        velocity.multiplyScalar(Math.exp(-4.5 * delta));
-        camera.position.addScaledVector(velocity, delta);
-        camera.position.y = Math.max(camera.position.y, terrainHeight(camera.position.x, camera.position.z, hashSeed(seedRef.current)) + 1.8);
-      }
-      const requestedFixedView = fixedPoseRef.current;
-      if (requestedFixedView) {
-        if (requestedFixedView.id !== lastFixedViewId) {
-          fixedViewFromPosition.copy(camera.position);
-          camera.getWorldDirection(forward);
-          fixedViewFromTarget.copy(camera.position).addScaledVector(forward, 20);
-          fixedViewPosition.set(...requestedFixedView.position);
-          fixedViewTarget.set(...requestedFixedView.target);
-          fixedViewStarted = elapsed;
-          lastFixedViewId = requestedFixedView.id;
-        }
-        const fixedBlend = THREE.MathUtils.smoothstep(elapsed - fixedViewStarted, 0, reducedMotionRef.current ? 2.4 : 1.25);
-        camera.position.lerpVectors(fixedViewFromPosition, fixedViewPosition, fixedBlend);
-        blendedTourTarget.lerpVectors(fixedViewFromTarget, fixedViewTarget, fixedBlend);
-        camera.lookAt(blendedTourTarget);
-      } else {
-        lastFixedViewId = null;
-      }
+      if (requestedScene) sceneRequestRef.current = null;
+      const cameraLocation = cameraManager.update({
+        elapsed,
+        delta,
+        mode: modeRef.current,
+        tourPaused: tourPausedRef.current,
+        reducedMotion: reducedMotionRef.current,
+        seed: seedRef.current,
+        requestedScene,
+        fixedView: fixedPoseRef.current,
+      });
+      if (cameraLocation) setTourLocation(cameraLocation);
       renderer.info.reset();
       if (postRef.current) composer.render(delta);
       else renderer.render(scene, camera);
@@ -940,15 +797,10 @@ export default function Home() {
       window.removeEventListener('resize', resize);
       window.removeEventListener('wizard-rebuild', rebuild);
       window.removeEventListener('wizard-soak', runSoak);
-      window.removeEventListener('keydown', onKeyDown);
-      window.removeEventListener('keyup', onKeyUp);
-      window.removeEventListener('mouseup', onPointerUp);
-      document.removeEventListener('mousemove', onMouseMove);
-      renderer.domElement.removeEventListener('mousedown', onPointerDown);
-      renderer.domElement.removeEventListener('wheel', onWheel);
       renderer.domElement.removeEventListener('webglcontextlost', onContextLost);
       renderer.domElement.removeEventListener('webglcontextrestored', onContextRestored);
       disposeObject(world.root);
+      cameraManager.dispose();
       environment.dispose();
       scene.clear();
       composer.dispose();
