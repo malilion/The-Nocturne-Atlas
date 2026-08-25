@@ -1,6 +1,24 @@
-import { mulberry32 } from './world-core.ts';
 import type { TimeOfDay } from './environment-system.ts';
 import type { StationQuestStep } from './station-quest.ts';
+
+const TRACK_URL = '/audio/beyond-the-mist.mp3';
+
+let cachedTrackBuffer: AudioBuffer | null = null;
+let cachedTrackPromise: Promise<AudioBuffer> | null = null;
+
+function loadTrackBuffer(context: AudioContext): Promise<AudioBuffer> {
+  if (cachedTrackBuffer) return Promise.resolve(cachedTrackBuffer);
+  if (!cachedTrackPromise) {
+    cachedTrackPromise = fetch(TRACK_URL)
+      .then((response) => response.arrayBuffer())
+      .then((data) => context.decodeAudioData(data))
+      .then((buffer) => {
+        cachedTrackBuffer = buffer;
+        return buffer;
+      });
+  }
+  return cachedTrackPromise;
+}
 
 export interface ArcaneAudioProfile {
   droneHz: number;
@@ -35,10 +53,7 @@ type WebkitWindow = Window & typeof globalThis & { webkitAudioContext?: typeof A
 export class ArcaneAudioSystem {
   private context: AudioContext | null = null;
   private master: GainNode | null = null;
-  private drone: OscillatorNode | null = null;
-  private overtone: OscillatorNode | null = null;
-  private wind: AudioBufferSourceNode | null = null;
-  private windFilter: BiquadFilterNode | null = null;
+  private track: AudioBufferSourceNode | null = null;
   private seedHash: number;
   private timeOfDay: TimeOfDay;
   private enabled = false;
@@ -59,63 +74,27 @@ export class ArcaneAudioSystem {
     master.gain.value = 0;
     master.connect(context.destination);
 
-    const droneFilter = context.createBiquadFilter();
-    droneFilter.type = 'lowpass';
-    droneFilter.Q.value = 0.72;
-    droneFilter.connect(master);
-    const drone = context.createOscillator();
-    drone.type = 'sine';
-    drone.connect(droneFilter);
-    const overtoneGain = context.createGain();
-    overtoneGain.gain.value = 0.17;
-    overtoneGain.connect(droneFilter);
-    const overtone = context.createOscillator();
-    overtone.type = 'triangle';
-    overtone.connect(overtoneGain);
-
-    const windFilter = context.createBiquadFilter();
-    windFilter.type = 'lowpass';
-    windFilter.Q.value = 0.5;
-    const windGain = context.createGain();
-    windGain.gain.value = 0.32;
-    windFilter.connect(windGain);
-    windGain.connect(master);
-    const windBuffer = context.createBuffer(1, context.sampleRate * 3, context.sampleRate);
-    const windData = windBuffer.getChannelData(0);
-    const random = mulberry32(this.seedHash ^ 0xa7c31d5e);
-    let smoothed = 0;
-    for (let index = 0; index < windData.length; index += 1) {
-      smoothed = smoothed * 0.985 + (random() * 2 - 1) * 0.015;
-      windData[index] = smoothed;
-    }
-    const wind = context.createBufferSource();
-    wind.buffer = windBuffer;
-    wind.loop = true;
-    wind.connect(windFilter);
-
-    drone.start();
-    overtone.start();
-    wind.start();
     this.context = context;
     this.master = master;
-    this.drone = drone;
-    this.overtone = overtone;
-    this.wind = wind;
-    this.windFilter = windFilter;
+    void this.startTrack(context, master);
+  }
+
+  private async startTrack(context: AudioContext, master: GainNode) {
+    const buffer = await loadTrackBuffer(context);
+    if (this.disposed || this.context !== context) return;
+    const track = context.createBufferSource();
+    track.buffer = buffer;
+    track.loop = true;
+    track.connect(master);
+    track.start();
+    this.track = track;
     this.applyProfile(true);
   }
 
   private applyProfile(immediate = false) {
-    if (!this.context || !this.master || !this.drone || !this.overtone || !this.windFilter) return;
+    if (!this.context || !this.master) return;
     const profile = createArcaneAudioProfile(this.seedHash, this.timeOfDay);
     const now = this.context.currentTime;
-    const settleAt = immediate ? now : now + 0.8;
-    this.drone.frequency.cancelScheduledValues(now);
-    this.overtone.frequency.cancelScheduledValues(now);
-    this.windFilter.frequency.cancelScheduledValues(now);
-    this.drone.frequency.linearRampToValueAtTime(profile.droneHz, settleAt);
-    this.overtone.frequency.linearRampToValueAtTime(profile.overtoneHz, settleAt);
-    this.windFilter.frequency.linearRampToValueAtTime(profile.windCutoffHz, settleAt);
     this.master.gain.cancelScheduledValues(now);
     this.master.gain.linearRampToValueAtTime(this.enabled ? profile.masterGain : 0, immediate ? now : now + 0.35);
   }
@@ -162,15 +141,10 @@ export class ArcaneAudioSystem {
   dispose() {
     if (this.disposed) return;
     this.disposed = true;
-    this.drone?.stop();
-    this.overtone?.stop();
-    this.wind?.stop();
+    this.track?.stop();
     void this.context?.close();
     this.context = null;
     this.master = null;
-    this.drone = null;
-    this.overtone = null;
-    this.wind = null;
-    this.windFilter = null;
+    this.track = null;
   }
 }
