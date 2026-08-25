@@ -12,7 +12,7 @@ An original, seed-driven 3D wizarding world built with Three.js and TypeScript. 
 
 The seed panel accepts any text. Re-entering the same seed recreates the same world. The HUD shows live frame rate, draw calls, and triangle count.
 
-The HUD also exposes real Low, Medium, and High quality tiers, atmospheric fog and cinematic grading toggles, and the deterministic world manifest. Quality tiers change render scale and instance density rather than acting as labels only.
+The HUD also exposes real Low, Medium, and High quality tiers, atmospheric fog, HDR Bloom/cinematic grading, zone-boundary diagnostics, and the deterministic world manifest. Quality tiers change render scale, Bloom strength, and instance density rather than acting as labels only.
 
 ## Local development
 
@@ -28,5 +28,7 @@ Run the deterministic regression suite with `npm test`. It checks manifest repea
 ## Implementation notes
 
 The experience uses direct Three.js scene, camera, renderer, geometry, shader, instancing, and GPU resource lifecycle management. It contains no third-party models, textures, characters, names, or franchise assets. The procedural water, architecture, vegetation, village, and ambience are generated at runtime.
+
+World regeneration uses an atomic swap: a new world is constructed and validated before replacing the active root. If generation fails, the existing world remains visible and usable.
 
 This is a polished Phase 1 vertical slice. Collision, interiors, NPCs, quests, audio, and world streaming are intentionally outside its scope.

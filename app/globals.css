@@ -21,6 +21,7 @@ button { color: inherit; }
 .status-pill { display: flex; align-items: center; gap: 9px; border: 1px solid var(--line); border-radius: 999px; padding: 9px 13px; background: rgba(6,10,14,.35); color: #bec4c0; font-size: 9px; letter-spacing: .14em; text-transform: uppercase; backdrop-filter: blur(10px); }
 .status-pill span { width: 5px; height: 5px; border-radius: 50%; background: #a7d2ad; box-shadow: 0 0 9px #8ed1a0; }
 .status-pill.is-building span { background: #e5bd78; box-shadow: 0 0 9px #e5bd78; animation: pulse 1.2s infinite; }
+.status-pill.is-error span { background: #d98b75; box-shadow: 0 0 9px #d98b75; }
 .top-actions { display: flex; align-items: center; gap: 8px; }
 .perf-button { height: 32px; border: 1px solid var(--line); border-radius: 999px; padding: 0 13px; background: rgba(6,10,14,.35); color: #979e9a; cursor: pointer; font-size: 8px; font-weight: 700; letter-spacing: .16em; }
 .hero-copy { position: absolute; z-index: 2; top: 18%; left: 7.5%; width: min(470px, 42vw); pointer-events: none; }
@@ -38,6 +39,7 @@ button { color: inherit; }
 .seed-meta { display: flex; justify-content: space-between; margin-top: 10px; color: #7f8784; font-size: 8px; letter-spacing: .1em; text-transform: uppercase; }
 .seed-meta button { border: 0; padding: 0; background: transparent; color: #aaaead; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
 .seed-meta i { margin: 0 7px; color: #555d5a; font-style: normal; }
+.generation-error { margin: 12px 0 0; border-top: 1px solid rgba(217,139,117,.25); padding-top: 10px; color: #c99384; font-size: 8px; letter-spacing: .06em; }
 .performance-hud { position: absolute; z-index: 4; top: 76px; right: 34px; width: 270px; border: 1px solid var(--line); border-top: 0; padding: 16px; background: rgba(5,9,13,.88); opacity: 0; pointer-events: none; transform: translateY(-8px); transition: opacity .2s, transform .2s; backdrop-filter: blur(16px); }
 .performance-hud.is-open { opacity: 1; pointer-events: auto; transform: translateY(0); }
 .performance-hud header { display: flex; justify-content: space-between; color: #9da4a1; font-size: 8px; font-weight: 700; letter-spacing: .17em; text-transform: uppercase; }
