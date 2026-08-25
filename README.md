@@ -8,9 +8,9 @@ An original, seed-driven 3D wizarding world built with Three.js and TypeScript.
 
 ## Scene Gallery / 場景圖庫
 
-Captured from the deterministic `MAGIC-001` world with generator `1.7.0`, Medium quality, and night mode. Every image is an actual scene-switch destination with the tour paused after arrival. Generator `1.8.0` preserves these camera destinations and adds the seeded castle, village, and forest geometry described below.
+Captured from the deterministic `MAGIC-001` world with generator `1.8.0`, Medium quality, and night mode. Every image is an actual scene-switch destination with the tour paused after arrival. The gallery includes the seeded castle gatehouse, buttresses and battlements, village chimneys and trim, and layered forest silhouettes introduced in this version.
 
-以下畫面擷取自固定種子 `MAGIC-001`、生成器 `1.7.0`、中等畫質與夜間模式。每張圖片都是實際可切換的場景目的地，抵達後導覽會保持暫停。生成器 `1.8.0` 保留相同鏡頭目的地，並加入下方說明的城堡、村莊與森林種子化幾何細節。
+以下畫面擷取自固定種子 `MAGIC-001`、生成器 `1.8.0`、中等畫質與夜間模式。每張圖片都是實際可切換的場景目的地，抵達後導覽會保持暫停。圖庫已呈現此版本新增的種子化城門建築、扶壁與垛口、村莊煙囪與飾條，以及分層森林輪廓。
 
 | 1 · Castle of Veyra / 維拉城堡 | 2 · Lumen Row / 流明街村莊 |
 | --- | --- |
@@ -68,12 +68,12 @@ Create a production build with `npm run build`. Run the deterministic regression
 
 ### Validation evidence
 
-- Seven fixed destinations were browser-checked and captured from the current generator.
+- Seven fixed destinations were browser-checked and recaptured from generator `1.8.0` at 1280×720.
 - Village, Forest, Tower, and Moving Stair cameras satisfy presentation-clearance contracts across twenty regression seeds.
 - Day/night transition, automatic orbit, mouse drag, and wheel zoom were exercised in the local WebGL experience. Touch input shares the tested orbit constraints and adds one-finger drag plus two-finger pinch.
 - All 26 deterministic, lifecycle, shader, environment, camera, and presentation tests pass. Coverage includes seeded detail profiles, night fill ownership, exposure, fog density, daylight transition, shadow toggles, landmark-relative orbit focus, drag-paused automatic rotation, and idempotent cleanup.
 - Production build and lint complete without errors. The build currently reports a non-blocking warning for the Three.js client chunk exceeding 500 kB after minification.
-- The generator `1.7.0` baseline Medium-quality sample reported 146 draw calls, 55k triangles, and 70 geometries, within the Phase 1 draw-call budget. The `1.8.0` village detail pass replaces per-building windows with shared instances to offset its new geometry; a fresh hardware sample remains recommended. Final 1080p FPS qualification is hardware-dependent.
+- The current generator `1.8.0` Medium-quality castle sample reports 172 draw calls, 63k triangles, and 64 geometries, within the Phase 1 draw-call budget. The village detail pass replaces per-building windows with shared instances to offset its new geometry. Final 1080p FPS qualification remains hardware-dependent.
 
 ### Implementation notes
 
@@ -133,12 +133,12 @@ npm run dev
 
 ### 驗證結果
 
-- 七個固定場景目的地皆已在目前的生成器中實際檢查並截圖。
+- 七個固定場景目的地皆已使用生成器 `1.8.0` 以 1280×720 實際檢查並重新截圖。
 - 村莊、森林、高塔與移動階梯鏡頭，在二十組回歸種子中皆符合取景淨空規則。
 - 日夜切換、自動環繞、滑鼠拖曳與滾輪縮放已在本機 WebGL 場景操作驗證。觸控操作沿用相同環繞限制，並加入單指拖曳與雙指縮放。
 - 26 項固定性、生命週期、Shader、環境、鏡頭與場景呈現測試全數通過。涵蓋種子化細節設定、夜間補光管理、曝光、霧密度、日夜轉換、陰影切換、地標中心環繞、拖曳暫停自轉與重複清理安全性。
 - 正式建置與 Lint 均無錯誤。目前僅有 Three.js 用戶端區塊壓縮後超過 500 kB 的非阻擋警告。
-- 生成器 `1.7.0` 的中等畫質基準抽樣為 146 Draw Calls、55k 三角形與 70 個 Geometry，符合 Phase 1 的 Draw Call 預算。`1.8.0` 村莊細節更新以共用 Instancing 取代逐棟窗戶，抵銷新增幾何成本；仍建議在目標硬體上重新取樣。最終 1080p FPS 需依實際硬體確認。
+- 目前生成器 `1.8.0` 的中等畫質城堡抽樣為 172 Draw Calls、63k 三角形與 64 個 Geometry，符合 Phase 1 的 Draw Call 預算。村莊細節以共用 Instancing 取代逐棟窗戶，抵銷新增幾何成本。最終 1080p FPS 仍需依實際硬體確認。
 
 ### 實作說明
 
