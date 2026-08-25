@@ -15,6 +15,7 @@ const DEFAULT_SEED = 'MAGIC-001';
 type CameraMode = 'tour' | 'fly' | 'orbit';
 type LandmarkId = WorldManifest['cameraLandmarks'][number]['id'];
 type TimeOfDay = 'day' | 'night';
+type FixedView = WorldManifest['validationViews'][number];
 
 const SCENE_LABELS: Record<LandmarkId, string> = {
   castle: 'Castle',
@@ -519,6 +520,7 @@ export default function Home() {
   const ambientPausedRef = useRef(false);
   const timeOfDayRef = useRef<TimeOfDay>('night');
   const sceneRequestRef = useRef<LandmarkId | null>(null);
+  const fixedPoseRef = useRef<FixedView | null>(null);
   const [seed, setSeed] = useState(DEFAULT_SEED);
   const [activeSeed, setActiveSeed] = useState(DEFAULT_SEED);
   const [entered, setEntered] = useState(false);
@@ -541,6 +543,7 @@ export default function Home() {
   const [waterMotion, setWaterMotion] = useState(1);
   const [ambientPaused, setAmbientPaused] = useState(false);
   const [timeOfDay, setTimeOfDay] = useState<TimeOfDay>('night');
+  const [fixedView, setFixedView] = useState<FixedView | null>(null);
   const [generationStatus, setGenerationStatus] = useState<'ready' | 'building' | 'error'>('ready');
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [stats, setStats] = useState<PerformanceStats>({ fps: 60, frameMs: 16.7, calls: 0, triangles: 0, points: 0, lines: 0, geometries: 0, textures: 0, heapMb: null, generationMs: 0, disposedGeometries: 0, disposedMaterials: 0 });
@@ -649,6 +652,12 @@ export default function Home() {
     const desiredTourPosition = new THREE.Vector3();
     const desiredTourTarget = new THREE.Vector3();
     const blendedTourTarget = new THREE.Vector3();
+    const fixedViewFromPosition = new THREE.Vector3();
+    const fixedViewFromTarget = new THREE.Vector3();
+    const fixedViewPosition = new THREE.Vector3();
+    const fixedViewTarget = new THREE.Vector3();
+    let fixedViewStarted = -10;
+    let lastFixedViewId: FixedView['id'] | null = null;
     const startedAt = performance.now();
     let frame = 0;
     let rebuildRequested = false;
@@ -746,6 +755,12 @@ export default function Home() {
           const previousWorld = world;
           scene.add(nextWorld.root);
           world = nextWorld;
+          if (fixedPoseRef.current) {
+            const updatedFixedView = world.manifest.validationViews.find((view) => view.id === fixedPoseRef.current?.id) ?? null;
+            fixedPoseRef.current = updatedFixedView;
+            setFixedView(updatedFixedView);
+            lastFixedViewId = null;
+          }
           tourCurves = createTourCurves(world.manifest);
           tourTime = 0;
           lastTourIndex = -1;
@@ -889,6 +904,24 @@ export default function Home() {
         camera.position.addScaledVector(velocity, delta);
         camera.position.y = Math.max(camera.position.y, terrainHeight(camera.position.x, camera.position.z, hashSeed(seedRef.current)) + 1.8);
       }
+      const requestedFixedView = fixedPoseRef.current;
+      if (requestedFixedView) {
+        if (requestedFixedView.id !== lastFixedViewId) {
+          fixedViewFromPosition.copy(camera.position);
+          camera.getWorldDirection(forward);
+          fixedViewFromTarget.copy(camera.position).addScaledVector(forward, 20);
+          fixedViewPosition.set(...requestedFixedView.position);
+          fixedViewTarget.set(...requestedFixedView.target);
+          fixedViewStarted = elapsed;
+          lastFixedViewId = requestedFixedView.id;
+        }
+        const fixedBlend = THREE.MathUtils.smoothstep(elapsed - fixedViewStarted, 0, reducedMotionRef.current ? 2.4 : 1.25);
+        camera.position.lerpVectors(fixedViewFromPosition, fixedViewPosition, fixedBlend);
+        blendedTourTarget.lerpVectors(fixedViewFromTarget, fixedViewTarget, fixedBlend);
+        camera.lookAt(blendedTourTarget);
+      } else {
+        lastFixedViewId = null;
+      }
       renderer.info.reset();
       if (postRef.current) composer.render(delta);
       else renderer.render(scene, camera);
@@ -1014,6 +1047,8 @@ export default function Home() {
   }, [soakAudit.running]);
 
   const selectMode = useCallback((nextMode: CameraMode) => {
+    fixedPoseRef.current = null;
+    setFixedView(null);
     modeRef.current = nextMode;
     setMode(nextMode);
     if (nextMode !== 'fly' && document.pointerLockElement) document.exitPointerLock();
@@ -1027,6 +1062,16 @@ export default function Home() {
     setTourPaused(true);
     setTourLocation(landmark);
     selectMode('tour');
+  }, [manifest, selectMode]);
+
+  const selectFixedView = useCallback((viewId: FixedView['id']) => {
+    const view = manifest.validationViews.find((item) => item.id === viewId);
+    if (!view) return;
+    selectMode('tour');
+    fixedPoseRef.current = view;
+    setFixedView(view);
+    tourPausedRef.current = true;
+    setTourPaused(true);
   }, [manifest, selectMode]);
 
   const toggleTimeOfDay = useCallback(() => {
@@ -1048,6 +1093,8 @@ export default function Home() {
   }, [regenerate, selectMode]);
 
   const toggleTourPause = useCallback(() => {
+    fixedPoseRef.current = null;
+    setFixedView(null);
     setTourPaused((paused) => {
       tourPausedRef.current = !paused;
       return !paused;
@@ -1063,6 +1110,8 @@ export default function Home() {
       if (key === 'o') selectMode('orbit');
       if (key === 'r') randomSeed();
       if (key >= '1' && key <= '5') selectScene(manifest.cameraLandmarks[Number(key) - 1].id);
+      if (key === '6') selectFixedView('courtyard-stair');
+      if (key === '7') selectFixedView('aerial-orbit');
       if (key === 'n') toggleTimeOfDay();
       if (key === ' ' && modeRef.current === 'tour') {
         event.preventDefault();
@@ -1071,7 +1120,7 @@ export default function Home() {
     };
     window.addEventListener('keydown', shortcuts);
     return () => window.removeEventListener('keydown', shortcuts);
-  }, [manifest.cameraLandmarks, randomSeed, selectMode, selectScene, toggleTimeOfDay, toggleTourPause]);
+  }, [manifest.cameraLandmarks, randomSeed, selectFixedView, selectMode, selectScene, toggleTimeOfDay, toggleTourPause]);
 
   return (
     <main className={`experience-shell ${entered ? 'is-entered' : ''} ${timeOfDay === 'day' ? 'is-day' : 'is-night'}`}>
@@ -1130,9 +1179,9 @@ export default function Home() {
         {soakAudit.finalHeapMb !== null && <p className="audit-heap">Heap sample · {soakAudit.baselineHeapMb ?? 'N/A'}→{soakAudit.finalHeapMb} MB</p>}
         <button className="manifest-copy" onClick={copyManifest}>{manifestCopied ? 'Manifest copied' : 'Copy world manifest'}</button>
       </aside>
-      {entered && <nav className="scene-switcher" aria-label="Scene selection"><span>Jump to</span>{manifest.cameraLandmarks.map((landmark, index) => <button key={landmark.id} className={tourLocation.id === landmark.id && mode === 'tour' ? 'active' : ''} onClick={() => selectScene(landmark.id)} aria-label={`Go to ${landmark.label}`}><kbd>{index + 1}</kbd>{SCENE_LABELS[landmark.id]}</button>)}</nav>}
+      {entered && <nav className="scene-switcher" aria-label="Scene selection"><span>Jump to</span>{manifest.cameraLandmarks.map((landmark, index) => <button key={landmark.id} className={!fixedView && tourLocation.id === landmark.id && mode === 'tour' ? 'active' : ''} onClick={() => selectScene(landmark.id)} aria-label={`Go to ${landmark.label}`}><kbd>{index + 1}</kbd>{SCENE_LABELS[landmark.id]}</button>)}{manifest.validationViews.filter((view) => view.id === 'courtyard-stair' || view.id === 'aerial-orbit').map((view, index) => <button key={view.id} className={fixedView?.id === view.id ? 'active' : ''} onClick={() => selectFixedView(view.id)} aria-label={`Go to ${view.label}`}><kbd>{index + 6}</kbd>{view.id === 'courtyard-stair' ? 'Stairs' : 'Aerial'}</button>)}</nav>}
       <footer className="scene-footer">
-        <div className="landmark-caption"><span>{mode === 'tour' ? String(manifest.cameraLandmarks.findIndex((landmark) => landmark.id === tourLocation.id) + 1).padStart(2, '0') : mode === 'fly' ? 'F' : 'O'}</span><p><strong>{mode === 'tour' ? tourLocation.label : mode === 'fly' ? 'Free flight' : 'Atlas survey'}</strong><small>{mode === 'tour' ? tourLocation.subtitle : mode === 'fly' ? 'Manual navigation' : 'Orbital inspection'}</small></p>{mode === 'tour' && <button className="tour-pause" onClick={toggleTourPause}>{tourPaused ? 'Resume' : 'Pause'}</button>}</div>
+        <div className="landmark-caption"><span>{fixedView ? 'V' : mode === 'tour' ? String(manifest.cameraLandmarks.findIndex((landmark) => landmark.id === tourLocation.id) + 1).padStart(2, '0') : mode === 'fly' ? 'F' : 'O'}</span><p><strong>{fixedView ? fixedView.label : mode === 'tour' ? tourLocation.label : mode === 'fly' ? 'Free flight' : 'Atlas survey'}</strong><small>{fixedView ? fixedView.subtitle : mode === 'tour' ? tourLocation.subtitle : mode === 'fly' ? 'Manual navigation' : 'Orbital inspection'}</small></p>{mode === 'tour' && <button className="tour-pause" onClick={toggleTourPause}>{tourPaused ? 'Resume' : 'Pause'}</button>}</div>
         <nav className="camera-modes" aria-label="Camera mode">
           <button className={mode === 'tour' ? 'active' : ''} onClick={() => selectMode('tour')}><kbd>T</kbd> Tour</button>
           <button className={mode === 'fly' ? 'active' : ''} onClick={() => selectMode('fly')}><kbd>F</kbd> Free fly</button>
