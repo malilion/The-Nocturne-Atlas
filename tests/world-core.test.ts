@@ -103,6 +103,19 @@ test('forest LOD policy is deterministic, complete, and quality-aware', () => {
   assert.ok(high.forestLod.splitRadius > medium.forestLod.splitRadius);
 });
 
+test('village plans obey constraints and do not cascade across quality tiers', () => {
+  for (let seedIndex = 1; seedIndex <= 20; seedIndex += 1) {
+    const seed = `MAGIC-${String(seedIndex).padStart(3, '0')}`;
+    const low = createWorldManifest(seed, 'low');
+    const high = createWorldManifest(seed, 'high');
+    assert.equal(validateWorldManifest(high).ok, true, validateWorldManifest(high).errors.join('\n'));
+    assert.equal(high.villageBuildings.length, high.counts.houses);
+    assert.equal(new Set(high.villageBuildings.map((building) => building.id)).size, high.villageBuildings.length);
+    assert.deepEqual(high.villageBuildings.slice(0, low.villageBuildings.length), low.villageBuildings);
+    assert.deepEqual(high.towerHeights, low.towerHeights);
+  }
+});
+
 test('generation source never calls Math.random', async () => {
   const source = await readFile(new URL('../app/page.tsx', import.meta.url), 'utf8');
   assert.equal(source.includes('Math.random('), false);

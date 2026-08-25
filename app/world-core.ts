@@ -26,6 +26,17 @@ export interface CastleGraphEdge {
   type: 'corridor' | 'bridge' | 'moving-stair';
 }
 
+export interface VillageBuildingPlan {
+  id: string;
+  position: [number, number];
+  side: -1 | 1;
+  width: number;
+  depth: number;
+  height: number;
+  rotation: number;
+  roofHeight: number;
+}
+
 export interface WorldValidationReport {
   ok: boolean;
   errors: string[];
@@ -35,7 +46,7 @@ export interface WorldValidationReport {
 export interface WorldManifest {
   seed: string;
   seedHash: number;
-  generatorVersion: '1.4.0';
+  generatorVersion: '1.5.0';
   manifestHash: string;
   quality: QualityTier;
   towerHeights: number[];
@@ -49,6 +60,7 @@ export interface WorldManifest {
     farTrees: number;
     splitRadius: number;
   };
+  villageBuildings: VillageBuildingPlan[];
   cameraLandmarks: Array<{
     id: 'castle' | 'village' | 'lake' | 'forest' | 'tower';
     label: string;
@@ -132,6 +144,24 @@ export function createWorldManifest(seedText: string, quality: QualityTier): Wor
     farTrees: counts.trees - nearTrees,
     splitRadius: quality === 'low' ? 46 : quality === 'medium' ? 52 : 56,
   };
+  const village = seededStream(seed, 'village/buildings');
+  const villageBuildings: VillageBuildingPlan[] = Array.from({ length: counts.houses }, (_, index) => {
+    const side = (index % 2 === 0 ? -1 : 1) as -1 | 1;
+    const laneIndex = Math.floor(index / 2);
+    return {
+      id: `lumen-house-${String(index + 1).padStart(2, '0')}`,
+      position: [
+        Number((-53 + laneIndex * 4.05 + (village() - 0.5) * 0.35).toFixed(3)),
+        Number((13 + side * (4.9 + village() * 1.3)).toFixed(3)),
+      ],
+      side,
+      width: Number((2.4 + village() * 0.7).toFixed(3)),
+      depth: Number((2.8 + village() * 0.9).toFixed(3)),
+      height: Number((3 + village() * 2.4).toFixed(3)),
+      rotation: Number((-0.14 + (village() - 0.5) * 0.16).toFixed(3)),
+      roofHeight: Number((2.3 + village()).toFixed(3)),
+    };
+  });
   const castleGraph: WorldManifest['castleGraph'] = {
     nodes: [
       { id: 'astral-spire', type: 'tower', position: [-9, 0, -3], radius: 3.6, height: towerHeights[0] },
@@ -154,12 +184,13 @@ export function createWorldManifest(seedText: string, quality: QualityTier): Wor
   const base = {
     seed,
     seedHash,
-    generatorVersion: '1.4.0' as const,
+    generatorVersion: '1.5.0' as const,
     quality,
     towerHeights,
     castleGraph,
     counts,
     forestLod,
+    villageBuildings,
     cameraLandmarks,
     zones: [
       { id: 'castle-core', type: 'castle' as const, center: [-7, -4] as [number, number], radius: 25 },
@@ -234,6 +265,37 @@ export function validateWorldManifest(manifest: WorldManifest): WorldValidationR
   if (!manifest.castleGraph.edges.some((edge) => edge.type === 'moving-stair')) warnings.push('Castle graph has no moving staircase route.');
   if (manifest.forestLod.nearTrees + manifest.forestLod.farTrees !== manifest.counts.trees) errors.push('Forest LOD counts do not match the total tree count.');
   if (manifest.forestLod.nearTrees <= 0 || manifest.forestLod.farTrees <= 0 || manifest.forestLod.splitRadius <= 0) errors.push('Forest LOD policy is invalid.');
+  if (manifest.villageBuildings.length !== manifest.counts.houses) errors.push('Village building plan does not match the requested house count.');
+  const villageZone = manifest.zones.find((zone) => zone.type === 'village');
+  for (const building of manifest.villageBuildings) {
+    if (![...building.position, building.width, building.depth, building.height, building.rotation, building.roofHeight].every(Number.isFinite)) {
+      errors.push(`Village building has non-finite parameters: ${building.id}`);
+      continue;
+    }
+    if (building.width <= 0 || building.depth <= 0 || building.height <= 0 || building.roofHeight <= 0) errors.push(`Village building has invalid dimensions: ${building.id}`);
+    if (Math.abs(building.rotation + 0.14) > 0.1) errors.push(`Village building does not face the main road: ${building.id}`);
+    const roadSetback = Math.abs(building.position[1] - 13) - building.depth / 2;
+    if (roadSetback < 2.5) errors.push(`Village building violates the road setback: ${building.id}`);
+    if (villageZone && Math.hypot(building.position[0] - villageZone.center[0], building.position[1] - villageZone.center[1]) > villageZone.radius) errors.push(`Village building lies outside its zone: ${building.id}`);
+    if (Math.hypot(building.position[0] + 7, building.position[1] + 4) < 11) errors.push(`Village building enters the castle exclusion field: ${building.id}`);
+    if (Math.hypot(building.position[0] - 28, building.position[1] - 18) < 29) errors.push(`Village building enters the lake exclusion field: ${building.id}`);
+    const cornerHeights = [
+      terrainHeight(building.position[0] - building.width / 2, building.position[1] - building.depth / 2, manifest.seedHash),
+      terrainHeight(building.position[0] + building.width / 2, building.position[1] - building.depth / 2, manifest.seedHash),
+      terrainHeight(building.position[0] - building.width / 2, building.position[1] + building.depth / 2, manifest.seedHash),
+      terrainHeight(building.position[0] + building.width / 2, building.position[1] + building.depth / 2, manifest.seedHash),
+    ];
+    if (Math.max(...cornerHeights) - Math.min(...cornerHeights) > 4.2) errors.push(`Village building exceeds the terrain slope budget: ${building.id}`);
+  }
+  for (let first = 0; first < manifest.villageBuildings.length; first += 1) {
+    for (let second = first + 1; second < manifest.villageBuildings.length; second += 1) {
+      const a = manifest.villageBuildings[first];
+      const b = manifest.villageBuildings[second];
+      const overlapsX = Math.abs(a.position[0] - b.position[0]) < (a.width + b.width) / 2 + 0.25;
+      const overlapsZ = Math.abs(a.position[1] - b.position[1]) < (a.depth + b.depth) / 2 + 0.25;
+      if (overlapsX && overlapsZ) errors.push(`Village buildings overlap: ${a.id} / ${b.id}`);
+    }
+  }
 
   const zoneIds = new Set<string>();
   for (const zone of manifest.zones) {
