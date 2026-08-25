@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { createStationHallInterior } from './station-hall.ts';
 import { seededStream, terrainHeight, type QualityTier, type WorldManifest } from './world-core.ts';
 import type { EmbellishmentMaterials } from './world-embellishments.ts';
 
@@ -159,10 +160,7 @@ function createStationRegion(manifest: WorldManifest, quality: QualityTier, mate
   const station = new THREE.Group();
   station.name = 'veilcross-station';
   station.position.set(baseX, baseY, baseZ);
-  const hall = new THREE.Mesh(new THREE.BoxGeometry(14, 6.8, 8), materials.stone);
-  hall.position.y = 3.4;
-  hall.castShadow = true;
-  hall.receiveShadow = true;
+  const hall = createStationHallInterior(manifest.seed, materials);
   const roof = new THREE.Mesh(new THREE.ConeGeometry(8.2, 4.8, 4), materials.roof);
   roof.position.y = 9;
   roof.rotation.y = Math.PI / 4;
@@ -180,8 +178,8 @@ function createStationRegion(manifest: WorldManifest, quality: QualityTier, mate
   }
   station.add(finalize(windows, false));
 
-  const clockTower = new THREE.Mesh(new THREE.BoxGeometry(3.4, 8.5, 3.4), materials.stone);
-  clockTower.position.set(0, 8.6, 0);
+  const clockTower = new THREE.Mesh(new THREE.BoxGeometry(3.4, 5.7, 3.4), materials.stone);
+  clockTower.position.set(0, 9.65, 0);
   clockTower.castShadow = true;
   station.add(clockTower);
   const clockFace = new THREE.Mesh(new THREE.CircleGeometry(1.05, 24), materials.glass);

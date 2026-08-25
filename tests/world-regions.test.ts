@@ -31,6 +31,9 @@ test('world regions build mountains, a complete ruin, and Veilcross station', ()
   assert.ok(regions.root.getObjectByName('orison-ruins-region'));
   assert.ok(regions.root.getObjectByName('orison-memory-monolith'));
   assert.ok(regions.root.getObjectByName('veilcross-station'));
+  assert.ok(regions.root.getObjectByName('veilcross-waiting-hall'));
+  assert.ok(regions.root.getObjectByName('veilcross-departure-board'));
+  assert.ok(regions.root.getObjectByName('station-quest-departure-anchor'));
   assert.ok(regions.root.getObjectByName('veilcross-platform'));
   assert.ok(regions.root.getObjectByName('veilcross-arcane-railcar'));
 });

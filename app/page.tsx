@@ -37,12 +37,19 @@ const FIXED_SCENE_LABELS: Partial<Record<FixedView['id'], string>> = {
   'courtyard-stair': 'Stairs',
   'aerial-orbit': 'Aerial',
   'great-hall': 'Hall',
+  'station-hall': 'Waiting Hall',
 };
 const FIXED_SCENE_SHORTCUTS: Partial<Record<FixedView['id'], string>> = {
   'courtyard-stair': '9',
   'aerial-orbit': '0',
   'great-hall': 'H',
+  'station-hall': 'I',
 };
+const STATION_NOTICES = [
+  'Platform nine remains unlisted. Present the obsidian seal before 00:17.',
+  'The Umbravale service is delayed until the memory lantern returns to Orison.',
+  'No luggage bearing a silver moth may cross the Veil after midnight.',
+] as const;
 
 interface PerformanceStats {
   fps: number;
@@ -818,6 +825,7 @@ export default function Home() {
   const [ambientPaused, setAmbientPaused] = useState(false);
   const [timeOfDay, setTimeOfDay] = useState<TimeOfDay>('night');
   const [fixedView, setFixedView] = useState<FixedView | null>(null);
+  const [stationNoticeOpen, setStationNoticeOpen] = useState(false);
   const [generationStatus, setGenerationStatus] = useState<'ready' | 'building' | 'error'>('ready');
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [stats, setStats] = useState<PerformanceStats>({ fps: 60, frameMs: 16.7, calls: 0, triangles: 0, points: 0, lines: 0, geometries: 0, textures: 0, heapMb: null, generationMs: 0, disposedGeometries: 0, disposedMaterials: 0 });
@@ -1309,6 +1317,7 @@ export default function Home() {
       if (key === '9') selectFixedView('courtyard-stair');
       if (key === '0') selectFixedView('aerial-orbit');
       if (key === 'h') selectFixedView('great-hall');
+      if (key === 'i') selectFixedView('station-hall');
       if (key === 'n') toggleTimeOfDay();
       if (key === ' ' && modeRef.current === 'tour') {
         event.preventDefault();
@@ -1354,6 +1363,12 @@ export default function Home() {
         <div className="seed-meta"><span>Active · {activeSeed}</span><span><button onClick={randomSeed} disabled={rebuildLocked}>Randomize</button><i>·</i><button onClick={copySeed}>{copied ? 'Copied' : 'Copy seed'}</button></span></div>
         {generationError && <p className="generation-error" role="alert">The previous world remains active. {generationError}</p>}
       </section>
+      {entered && fixedView?.id === 'station-hall' && <aside className="station-interaction" aria-live="polite">
+        <p>Veilcross departures · 00:17</p>
+        <h2>Sealed midnight notice</h2>
+        <p className={stationNoticeOpen ? 'is-revealed' : ''}>{stationNoticeOpen ? STATION_NOTICES[manifest.seedHash % STATION_NOTICES.length] : 'A brass seal hides the final destination from ordinary passengers.'}</p>
+        <button type="button" onClick={() => setStationNoticeOpen((open) => !open)} aria-expanded={stationNoticeOpen}>{stationNoticeOpen ? 'Reseal notice' : 'Inspect departure board'}</button>
+      </aside>}
       <aside className={`performance-hud ${hudOpen ? 'is-open' : ''}`} aria-hidden={!hudOpen}>
         <header><span>Field diagnostics</span><button onClick={() => setHudOpen(false)}>×</button></header>
         <dl><div><dt>Frame rate</dt><dd>{stats.fps} <small>FPS · {stats.frameMs}MS</small></dd></div><div><dt>Draw calls</dt><dd>{stats.calls}</dd></div><div><dt>Triangles</dt><dd>{Math.round(stats.triangles / 1000)}k</dd></div><div><dt>Points / lines</dt><dd>{stats.points}P · {stats.lines}L</dd></div><div><dt>GPU resources</dt><dd>{stats.geometries}G · {stats.textures}T</dd></div><div><dt>JS heap</dt><dd>{stats.heapMb === null ? 'N/A' : `${stats.heapMb} MB`}</dd></div><div><dt>Generation</dt><dd>{stats.generationMs} <small>MS</small></dd></div><div><dt>Last disposal</dt><dd>{stats.disposedGeometries}G · {stats.disposedMaterials}M</dd></div><div><dt>Castle graph</dt><dd>{manifest.castleGraph.nodes.length}N · {manifest.castleGraph.edges.length}E</dd></div><div><dt>Manifest</dt><dd>{manifest.manifestHash}</dd></div></dl>
@@ -1383,7 +1398,7 @@ export default function Home() {
         {soakAudit.finalHeapMb !== null && <p className="audit-heap">Heap sample · {soakAudit.baselineHeapMb ?? 'N/A'}→{soakAudit.finalHeapMb} MB</p>}
         <button className="manifest-copy" onClick={copyManifest}>{manifestCopied ? 'Manifest copied' : 'Copy world manifest'}</button>
       </aside>
-      {entered && <nav className="scene-switcher" aria-label="Scene selection"><span>Jump to</span>{manifest.cameraLandmarks.map((landmark, index) => <button key={landmark.id} className={!fixedView && tourLocation.id === landmark.id && (mode === 'tour' || mode === 'orbit') ? 'active' : ''} onClick={() => selectScene(landmark.id)} aria-label={`Go to ${landmark.label}`}><kbd>{index + 1}</kbd>{SCENE_LABELS[landmark.id]}</button>)}{manifest.validationViews.filter((view) => view.id === 'courtyard-stair' || view.id === 'aerial-orbit' || view.id === 'great-hall').map((view) => <button key={view.id} className={fixedView?.id === view.id ? 'active' : ''} onClick={() => selectFixedView(view.id)} aria-label={`Go to ${view.label}`}><kbd>{FIXED_SCENE_SHORTCUTS[view.id]}</kbd>{FIXED_SCENE_LABELS[view.id]}</button>)}</nav>}
+      {entered && <nav className="scene-switcher" aria-label="Scene selection"><span>Jump to</span>{manifest.cameraLandmarks.map((landmark, index) => <button key={landmark.id} className={!fixedView && tourLocation.id === landmark.id && (mode === 'tour' || mode === 'orbit') ? 'active' : ''} onClick={() => selectScene(landmark.id)} aria-label={`Go to ${landmark.label}`}><kbd>{index + 1}</kbd>{SCENE_LABELS[landmark.id]}</button>)}{manifest.validationViews.filter((view) => view.id === 'courtyard-stair' || view.id === 'aerial-orbit' || view.id === 'great-hall' || view.id === 'station-hall').map((view) => <button key={view.id} className={fixedView?.id === view.id ? 'active' : ''} onClick={() => selectFixedView(view.id)} aria-label={`Go to ${view.label}`}><kbd>{FIXED_SCENE_SHORTCUTS[view.id]}</kbd>{FIXED_SCENE_LABELS[view.id]}</button>)}</nav>}
       <footer className="scene-footer">
         <div className="landmark-caption"><span>{fixedView ? 'V' : mode === 'tour' ? String(manifest.cameraLandmarks.findIndex((landmark) => landmark.id === tourLocation.id) + 1).padStart(2, '0') : mode === 'walk' ? 'G' : mode === 'fly' ? 'F' : 'O'}</span><p><strong>{fixedView ? fixedView.label : mode === 'tour' ? tourLocation.label : mode === 'walk' ? 'Ground walk' : mode === 'fly' ? 'Free flight' : `${tourLocation.label} orbit`}</strong><small>{fixedView ? fixedView.subtitle : mode === 'tour' ? tourLocation.subtitle : mode === 'walk' ? 'Terrain-bound collision navigation' : mode === 'fly' ? 'Manual navigation' : 'Drag to inspect · Auto resumes on release'}</small></p>{mode === 'tour' && <button className="tour-pause" onClick={toggleTourPause}>{tourPaused ? 'Resume' : 'Pause'}</button>}</div>
         <nav className="camera-modes" aria-label="Camera mode">
