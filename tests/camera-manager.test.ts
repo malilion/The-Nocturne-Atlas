@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import * as THREE from 'three';
 import { CameraManager, type CameraUpdate } from '../app/camera-manager.ts';
-import { createWorldManifest } from '../app/world-core.ts';
+import { WALK_EYE_HEIGHT } from '../app/walk-collision.ts';
+import { createWorldManifest, terrainHeight } from '../app/world-core.ts';
 
 const manifest = createWorldManifest('MAGIC-001', 'medium');
 const baseUpdate: CameraUpdate = {
@@ -101,4 +102,22 @@ test('CameraManager orbits the most recently presented landmark', () => {
   camera.getWorldDirection(direction);
   const expectedDirection = villageTarget.clone().sub(camera.position).normalize();
   assert.ok(direction.angleTo(expectedDirection) < 0.0001);
+});
+
+test('CameraManager grounds walk mode and applies keyboard movement', () => {
+  const camera = new THREE.PerspectiveCamera();
+  camera.position.set(50, 30, -50);
+  const manager = new CameraManager(camera, null, manifest);
+  const walkUpdate: CameraUpdate = { ...baseUpdate, mode: 'walk', elapsed: 1, delta: 0.05 };
+
+  manager.update(walkUpdate);
+  const startingPosition = camera.position.clone();
+  assert.ok(Math.abs(camera.position.y - (terrainHeight(50, -50, manifest.seedHash) + WALK_EYE_HEIGHT)) < 0.0001);
+
+  manager.setMovementKey('w', true);
+  for (let frame = 0; frame < 20; frame += 1) manager.update({ ...walkUpdate, elapsed: 1 + frame * 0.05 });
+  manager.setMovementKey('w', false);
+
+  assert.ok(camera.position.distanceTo(startingPosition) > 4);
+  assert.ok(Math.abs(camera.position.y - (terrainHeight(camera.position.x, camera.position.z, manifest.seedHash) + WALK_EYE_HEIGHT)) < 0.0001);
 });

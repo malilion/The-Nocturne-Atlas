@@ -1,7 +1,8 @@
 import * as THREE from 'three';
+import { resolveWalkMovement, WALK_EYE_HEIGHT } from './walk-collision.ts';
 import { hashSeed, terrainHeight, type WorldManifest } from './world-core.ts';
 
-export type CameraMode = 'tour' | 'fly' | 'orbit';
+export type CameraMode = 'tour' | 'walk' | 'fly' | 'orbit';
 export type LandmarkId = WorldManifest['cameraLandmarks'][number]['id'];
 export type FixedView = WorldManifest['validationViews'][number];
 
@@ -100,8 +101,9 @@ export class CameraManager {
       const euler = new THREE.Euler().setFromQuaternion(this.camera.quaternion, 'YXZ');
       this.flyYaw = euler.y;
       this.flyPitch = euler.x;
+      if (this.mode === 'walk') this.flyPitch = THREE.MathUtils.clamp(this.flyPitch, -1.1, 1.1);
       if (this.mode === 'orbit') {
-        if (this.focusTargetValid && this.lastMode !== 'fly') {
+        if (this.focusTargetValid && this.lastMode !== 'fly' && this.lastMode !== 'walk') {
           this.orbitTarget.copy(this.focusTarget);
         } else {
           this.camera.getWorldDirection(this.forward);
@@ -148,6 +150,8 @@ export class CameraManager {
         this.orbitTarget.z + Math.sin(this.orbitYaw) * Math.cos(this.orbitPitch) * this.orbitRadius,
       );
       this.lookAt(this.orbitTarget);
+    } else if (this.mode === 'walk') {
+      this.updateWalk(settings.delta);
     } else {
       this.updateFly(settings.delta, settings.seed);
     }
@@ -201,6 +205,12 @@ export class CameraManager {
 
   setOrbitInteraction(active: boolean) {
     this.orbitDragging = active;
+  }
+
+  setMovementKey(key: string, active: boolean) {
+    const normalized = key.toLowerCase();
+    if (active) this.keys.add(normalized);
+    else this.keys.delete(normalized);
   }
 
   private createTourCurves(manifest: WorldManifest) {
@@ -263,6 +273,34 @@ export class CameraManager {
     this.camera.position.y = Math.max(this.camera.position.y, terrainHeight(this.camera.position.x, this.camera.position.z, hashSeed(seed)) + 1.8);
   }
 
+  private updateWalk(delta: number) {
+    this.camera.rotation.order = 'YXZ';
+    this.camera.rotation.y = this.flyYaw;
+    this.camera.rotation.x = this.flyPitch;
+    this.camera.getWorldDirection(this.forward);
+    this.forward.y = 0;
+    this.forward.normalize();
+    this.right.crossVectors(this.forward, this.camera.up).normalize();
+    this.movement.set(0, 0, 0);
+    if (this.keys.has('w')) this.movement.add(this.forward);
+    if (this.keys.has('s')) this.movement.sub(this.forward);
+    if (this.keys.has('d')) this.movement.add(this.right);
+    if (this.keys.has('a')) this.movement.sub(this.right);
+
+    const current = { x: this.camera.position.x, z: this.camera.position.z };
+    if (this.movement.lengthSq() > 0) {
+      const speed = this.keys.has('shift') ? 10.5 : 5.8;
+      this.movement.normalize().multiplyScalar(speed * delta);
+      const resolved = resolveWalkMovement(current, {
+        x: current.x + this.movement.x,
+        z: current.z + this.movement.z,
+      }, this.manifest);
+      this.camera.position.set(resolved.x, resolved.groundY + WALK_EYE_HEIGHT, resolved.z);
+    } else {
+      this.camera.position.y = terrainHeight(current.x, current.z, this.manifest.seedHash) + WALK_EYE_HEIGHT;
+    }
+  }
+
   private attachControls() {
     if (!this.domElement || typeof window === 'undefined' || typeof document === 'undefined') return;
     window.addEventListener('keydown', this.onKeyDown);
@@ -278,15 +316,15 @@ export class CameraManager {
     this.controlsAttached = true;
   }
 
-  private readonly onKeyDown = (event: KeyboardEvent) => this.keys.add(event.key.toLowerCase());
-  private readonly onKeyUp = (event: KeyboardEvent) => this.keys.delete(event.key.toLowerCase());
+  private readonly onKeyDown = (event: KeyboardEvent) => this.setMovementKey(event.key, true);
+  private readonly onKeyUp = (event: KeyboardEvent) => this.setMovementKey(event.key, false);
   private readonly onPointerDown = () => {
-    if (this.mode === 'fly') this.domElement?.requestPointerLock();
+    if (this.mode === 'fly' || this.mode === 'walk') this.domElement?.requestPointerLock();
     if (this.mode === 'orbit') this.setOrbitInteraction(true);
   };
   private readonly onPointerUp = () => { this.setOrbitInteraction(false); };
   private readonly onMouseMove = (event: MouseEvent) => {
-    if (this.mode === 'fly' && document.pointerLockElement === this.domElement) {
+    if ((this.mode === 'fly' || this.mode === 'walk') && document.pointerLockElement === this.domElement) {
       this.flyYaw -= event.movementX * 0.0022;
       this.flyPitch = THREE.MathUtils.clamp(this.flyPitch - event.movementY * 0.0022, -1.35, 1.35);
     } else if (this.mode === 'orbit' && this.orbitDragging) {
