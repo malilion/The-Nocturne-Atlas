@@ -10,6 +10,7 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
 import { VignetteShader } from 'three/addons/shaders/VignetteShader.js';
+import { ArcaneAudioSystem } from './arcane-audio';
 import { CameraManager, type CameraMode, type FixedView, type LandmarkId } from './camera-manager';
 import { EnvironmentSystem, type TimeOfDay } from './environment-system';
 import { createGreatHallArchitecture } from './great-hall';
@@ -790,6 +791,8 @@ export default function Home() {
   const waterMotionRef = useRef(1);
   const ambientPausedRef = useRef(false);
   const timeOfDayRef = useRef<TimeOfDay>('night');
+  const audioEnabledRef = useRef(false);
+  const audioSystemRef = useRef<ArcaneAudioSystem | null>(null);
   const sceneRequestRef = useRef<LandmarkId | null>(null);
   const fixedPoseRef = useRef<FixedView | null>(null);
   const rebuildLockedRef = useRef(false);
@@ -819,6 +822,7 @@ export default function Home() {
   const [waterMotion, setWaterMotion] = useState(1);
   const [ambientPaused, setAmbientPaused] = useState(false);
   const [timeOfDay, setTimeOfDay] = useState<TimeOfDay>('night');
+  const [audioEnabled, setAudioEnabled] = useState(false);
   const [fixedView, setFixedView] = useState<FixedView | null>(null);
   const [stationQuestState, setStationQuestState] = useState<{ manifestHash: string; step: StationQuestStep }>({ manifestHash: '', step: 'sealed' });
   const [generationStatus, setGenerationStatus] = useState<'ready' | 'building' | 'error'>('ready');
@@ -895,6 +899,8 @@ export default function Home() {
 
     const initialGenerationStarted = performance.now();
     let world = createWorld(seedRef.current, qualityRef.current);
+    const audioSystem = new ArcaneAudioSystem(world.manifest.seedHash, timeOfDayRef.current);
+    audioSystemRef.current = audioSystem;
     let lastGenerationMs = performance.now() - initialGenerationStarted;
     let lastDisposal = { geometries: 0, materials: 0 };
     scene.add(world.root);
@@ -979,6 +985,7 @@ export default function Home() {
             setFixedView(updatedFixedView);
           }
           cameraManager.setManifest(world.manifest);
+          audioSystem.setSeed(world.manifest.seedHash);
           scene.remove(previousWorld.root);
           lastDisposal = disposeObject(previousWorld.root);
           renderer.setPixelRatio(Math.min(window.devicePixelRatio, renderScale()));
@@ -1164,6 +1171,8 @@ export default function Home() {
       renderer.domElement.removeEventListener('webglcontextrestored', onContextRestored);
       disposeObject(world.root);
       cameraManager.dispose();
+      audioSystem.dispose();
+      audioSystemRef.current = null;
       environment.dispose();
       scene.clear();
       composer.dispose();
@@ -1263,7 +1272,20 @@ export default function Home() {
     setTimeOfDay((current) => {
       const next = current === 'night' ? 'day' : 'night';
       timeOfDayRef.current = next;
+      audioSystemRef.current?.setTimeOfDay(next);
       return next;
+    });
+  }, []);
+
+  const toggleAudio = useCallback(() => {
+    const next = !audioEnabledRef.current;
+    audioEnabledRef.current = next;
+    setAudioEnabled(next);
+    void audioSystemRef.current?.setEnabled(next).then((available) => {
+      if (next && !available) {
+        audioEnabledRef.current = false;
+        setAudioEnabled(false);
+      }
     });
   }, []);
 
@@ -1314,6 +1336,7 @@ export default function Home() {
       if (key === 'h') selectFixedView('great-hall');
       if (key === 'i') selectFixedView('station-hall');
       if (key === 'n') toggleTimeOfDay();
+      if (key === 'm') toggleAudio();
       if (key === ' ' && modeRef.current === 'tour') {
         event.preventDefault();
         toggleTourPause();
@@ -1321,7 +1344,7 @@ export default function Home() {
     };
     window.addEventListener('keydown', shortcuts);
     return () => window.removeEventListener('keydown', shortcuts);
-  }, [manifest.cameraLandmarks, randomSeed, selectFixedView, selectMode, selectScene, toggleAutoRotate, toggleTimeOfDay, toggleTourPause]);
+  }, [manifest.cameraLandmarks, randomSeed, selectFixedView, selectMode, selectScene, toggleAudio, toggleAutoRotate, toggleTimeOfDay, toggleTourPause]);
 
   const auditGeometryStable = soakAudit.finalGeometries !== null && Math.abs(soakAudit.baselineGeometries - soakAudit.finalGeometries) <= 1;
   const auditHeapStable = soakAudit.finalHeapMb === null || soakAudit.baselineHeapMb === null || soakAudit.finalHeapMb <= soakAudit.baselineHeapMb + Math.max(8, soakAudit.baselineHeapMb * 0.15);
@@ -1329,7 +1352,11 @@ export default function Home() {
   const stationQuest = getStationQuest(manifest.seedHash);
   const stationQuestStep = stationQuestState.manifestHash === manifest.manifestHash ? stationQuestState.step : 'sealed';
   const stationQuestCopy = getStationQuestCopy(stationQuestStep, stationQuest);
-  const progressStationQuest = () => setStationQuestState({ manifestHash: manifest.manifestHash, step: advanceStationQuest(stationQuestStep) });
+  const progressStationQuest = () => {
+    const nextStep = advanceStationQuest(stationQuestStep);
+    setStationQuestState({ manifestHash: manifest.manifestHash, step: nextStep });
+    audioSystemRef.current?.playStationCue(nextStep);
+  };
 
   return (
     <main className={`experience-shell ${entered ? 'is-entered' : ''} ${timeOfDay === 'day' ? 'is-day' : 'is-night'}`}>
@@ -1343,6 +1370,7 @@ export default function Home() {
         </a>
         <div className="top-actions">
           {entered && <button className="perf-button" onClick={() => setSeedPanelOpen((open) => !open)} aria-expanded={seedPanelOpen}>{seedPanelOpen ? 'Close seed' : 'Seed'}</button>}
+          <button className={`time-toggle sound-toggle ${audioEnabled ? 'is-on' : ''}`} onClick={toggleAudio} aria-label={`${audioEnabled ? 'Mute' : 'Enable'} procedural soundscape`} aria-pressed={audioEnabled}><span aria-hidden="true">{audioEnabled ? '◉' : '○'}</span>{audioEnabled ? 'Mute' : 'Sound'}</button>
           <button className={`time-toggle is-${timeOfDay}`} onClick={toggleTimeOfDay} aria-label={`Switch to ${timeOfDay === 'night' ? 'day' : 'night'}`} aria-pressed={timeOfDay === 'day'}><span aria-hidden="true">{timeOfDay === 'night' ? '☼' : '☾'}</span>{timeOfDay === 'night' ? 'Day' : 'Night'}</button>
           <button className="perf-button" onClick={() => setHudOpen((open) => !open)} aria-expanded={hudOpen}>HUD</button>
           <div className={`status-pill is-${generationStatus}`}><span /> {generationStatus === 'building' ? 'Weaving world' : generationStatus === 'error' ? 'World retained' : 'World online'}</div>

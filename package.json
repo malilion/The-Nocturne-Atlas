@@ -9,7 +9,7 @@
     "dev": "vinext dev",
     "build": "vinext build",
     "start": "vinext start",
-    "test": "node --experimental-strip-types --test --test-isolation=none tests/world-core.test.ts tests/materials.test.ts tests/resource-registry.test.ts tests/environment-system.test.ts tests/camera-manager.test.ts tests/walk-collision.test.ts tests/great-hall.test.ts tests/station-hall.test.ts tests/station-quest.test.ts tests/rebuild-coordinator.test.ts tests/incremental-builder.test.ts tests/world-embellishments.test.ts tests/world-regions.test.ts",
+    "test": "node --experimental-strip-types --test --test-isolation=none tests/world-core.test.ts tests/materials.test.ts tests/resource-registry.test.ts tests/environment-system.test.ts tests/arcane-audio.test.ts tests/camera-manager.test.ts tests/walk-collision.test.ts tests/great-hall.test.ts tests/station-hall.test.ts tests/station-quest.test.ts tests/rebuild-coordinator.test.ts tests/incremental-builder.test.ts tests/world-embellishments.test.ts tests/world-regions.test.ts",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next"
   },
   "dependencies": {
