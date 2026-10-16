@@ -145,4 +145,4 @@ npm run dev
 
 ## 授權條款
 
-本專案採用 [MIT](LICENSE) 授權條款。
+程式碼採用 [MIT](LICENSE) 授權條款；原創音樂與美術採 [CC BY-NC 4.0](ASSETS_LICENSE.md)。
