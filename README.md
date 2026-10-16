@@ -145,4 +145,4 @@ This repository contains the complete original vertical slice plus grounded coll
 
 ## License
 
-[MIT](LICENSE)
+Code: [MIT](LICENSE). Original music and art: [CC BY-NC 4.0](ASSETS_LICENSE.md).
