@@ -22,6 +22,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          check-latest: true
       - run: npm ci
       - run: npm run build
       # vinext's static-export prerender doesn't support next.config.ts's
