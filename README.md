@@ -146,3 +146,8 @@ This repository contains the complete original vertical slice plus grounded coll
 ## License
 
 Code: [MIT](LICENSE). Original music and art: [CC BY-NC 4.0](ASSETS_LICENSE.md).
+
+---
+
+<!-- malilion-ecosystem-footer -->
+<p align="center"><sub>🦁 Part of the <a href="https://github.com/malilion">MaliLion</a> ecosystem · <a href="https://malilion.com">malilion.com</a> · <a href="https://github.com/malilion?tab=repositories">More projects</a></sub></p>
